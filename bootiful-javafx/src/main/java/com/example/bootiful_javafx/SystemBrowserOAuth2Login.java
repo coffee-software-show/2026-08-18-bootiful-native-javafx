@@ -34,13 +34,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.io.BufferedReader;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InterruptedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -53,7 +53,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /// Signs a *desktop* user in with the OAuth 2.0 authorization code grant + PKCE, driving the
 /// machine's real browser instead of an embedded one. The pieces are all Spring Security's - this
@@ -221,9 +224,15 @@ class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedCli
 
 }
 
-/// The redirect target of the authorization code flow: a socket on the loopback interface that
-/// lives exactly as long as one sign-in. It speaks just enough HTTP to read the query string the
-/// browser was redirected to and to say something friendly back to the user.
+/// The redirect target of the authorization code flow: an HTTP server on the loopback interface
+/// that lives exactly as long as one sign-in. It exists to read the query string the browser was
+/// redirected to and to say something friendly back to the user.
+///
+/// The server is `com.sun.net.httpserver.HttpServer`, which has been in the JDK since 6 and a
+/// supported, exported API - `jdk.httpserver` - since 9. Hand-rolling a `ServerSocket` and a
+/// request line parser here would mean owning the parts of HTTP the browser is entitled to use:
+/// keep-alive, chunking, a speculative connection opened and abandoned, a `HEAD` from a link
+/// prefetcher. This is not the place to relearn any of that.
 class LoopbackRedirectListener implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(LoopbackRedirectListener.class);
@@ -239,68 +248,61 @@ class LoopbackRedirectListener implements AutoCloseable {
             </html>
             """;
 
-    private final ServerSocket socket;
+    private final HttpServer server;
 
     private final String path;
+
+    /// Handed the parameters by whichever server thread takes the redirect, and read by the thread
+    /// sitting in [#await(Duration)] - one sign-in, one response, one hand-off.
+    private final CompletableFuture<Map<String, String>> response = new CompletableFuture<>();
 
     LoopbackRedirectListener(URI redirectUri) throws IOException {
         Assert.isTrue(redirectUri.getPort() > 0,
                 () -> "the redirect-uri [" + redirectUri + "] must name the port the app should listen on");
         this.path = redirectUri.getPath();
-        this.socket = new ServerSocket();
-        this.socket.setReuseAddress(true);
-        this.socket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), redirectUri.getPort()));
+        var address = new InetSocketAddress(InetAddress.getLoopbackAddress(), redirectUri.getPort());
+        this.server = HttpServer.create(address, 0, this.path, this::handle);
+        // no executor: handlers run on the server's own dispatch thread. This one only parses a
+        // query string and writes a page, and the work that *does* block - the token request -
+        // happens back on the thread in await(..).
+        this.server.start();
         log.debug("listening for the authorization response on {}", redirectUri);
     }
 
     /// The authorization response parameters, once the browser delivers them.
     Map<String, String> await(Duration timeout) throws IOException {
-        var deadline = System.nanoTime() + timeout.toNanos();
-        while (true) {
-            var remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
-            if (remaining <= 0) {
-                throw new SocketTimeoutException("gave up waiting for the authorization response");
-            }
-            this.socket.setSoTimeout((int) remaining);
-            var parameters = accept();
-            if (parameters != null) {
-                return parameters;
-            }
+        try {
+            return this.response.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        catch (TimeoutException te) {
+            throw new SocketTimeoutException("gave up waiting for the authorization response");
+        }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException("interrupted waiting for the authorization response");
+        }
+        catch (ExecutionException ee) {
+            throw new IOException(ee.getCause());
         }
     }
 
-    private Map<String, String> accept() throws IOException {
-        try (var connection = this.socket.accept()) {
-            connection.setSoTimeout(5_000);
-            var in = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.US_ASCII));
-            var parameters = parameters(in.readLine());
-            for (var header = in.readLine(); header != null && !header.isEmpty(); header = in.readLine()) {
-                // drain the request headers so the browser doesn't see the response as a reset
-            }
-            respond(connection, parameters != null);
-            return parameters;
+    /// A context matches by prefix, so this sees more than the redirect: the browser's
+    /// `/favicon.ico`, a stray `/`, a path that merely starts the same way. Anything that is not
+    /// the response we are waiting for gets a 404 and leaves the flow running.
+    private void handle(HttpExchange exchange) throws IOException {
+        var parameters = parameters(exchange.getRequestURI());
+        try (exchange) {
+            respond(exchange, parameters != null);
         }
-        catch (SocketTimeoutException ste) {
-            throw ste;
-        }
-        catch (IOException ioe) {
-            // browsers routinely open speculative connections and abandon them. Keep listening.
-            log.debug("ignoring a failed connection to the redirect listener", ioe);
-            return null;
+        if (parameters != null) {
+            // only after the page is on the wire: await(..) returning tears the server down.
+            this.response.complete(parameters);
         }
     }
 
-    /// `GET /login/oauth2/code/javafx?code=...&state=... HTTP/1.1` -> the query parameters, or
-    /// `null` for anything that isn't the redirect we're waiting for.
-    private Map<String, String> parameters(String requestLine) {
-        if (requestLine == null) {
-            return null;
-        }
-        var parts = requestLine.split(" ");
-        if (parts.length < 2) {
-            return null;
-        }
-        var target = URI.create(parts[1]);
+    /// `/login/oauth2/code/javafx?code=...&state=...` -> the query parameters, or `null` for
+    /// anything that isn't the redirect we're waiting for.
+    private Map<String, String> parameters(URI target) {
         if (!this.path.equals(target.getPath()) || target.getRawQuery() == null) {
             return null;
         }
@@ -316,24 +318,22 @@ class LoopbackRedirectListener implements AutoCloseable {
                 ? parameters : null;
     }
 
-    private static void respond(Socket connection, boolean matched) throws IOException {
-        var body = matched ? PAGE.getBytes(StandardCharsets.UTF_8) : new byte[0];
-        var head = """
-                HTTP/1.1 %s\r
-                Content-Type: text/html; charset=utf-8\r
-                Content-Length: %d\r
-                Connection: close\r
-                \r
-                """.formatted(matched ? "200 OK" : "404 Not Found", body.length);
-        var out = connection.getOutputStream();
-        out.write(head.getBytes(StandardCharsets.US_ASCII));
-        out.write(body);
-        out.flush();
+    private static void respond(HttpExchange exchange, boolean matched) throws IOException {
+        if (!matched) {
+            exchange.sendResponseHeaders(404, -1);
+            return;
+        }
+        var body = PAGE.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+        exchange.sendResponseHeaders(200, body.length);
+        exchange.getResponseBody().write(body);
     }
 
     @Override
-    public void close() throws IOException {
-        this.socket.close();
+    public void close() {
+        // stop(0): drop the listening socket now, and don't sit around waiting on a browser that
+        // is holding a keep-alive connection open for a page it is never going to ask for.
+        this.server.stop(0);
     }
 
 }
