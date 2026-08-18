@@ -1,0 +1,1860 @@
+{
+  "reflection": [
+    {
+      "type": "com.sun.glass.events.DndEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.GestureEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.KeyEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.MouseEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.SwipeGesture",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.TouchEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.ViewEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.WheelEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.events.WindowEvent",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Accessible",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Accessible$EventHandler",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Accessible$ExecuteAction",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Accessible$GetAttribute",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Application",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "createPixels",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int[]",
+            "float",
+            "float"
+          ]
+        },
+        {
+          "name": "enterNestedEventLoop",
+          "parameterTypes": []
+        },
+        {
+          "name": "getScaleFactor",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "leaveNestedEventLoop",
+          "parameterTypes": [
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "notifyDidBecomeActive",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyDidFinishLaunching",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyOpenFiles",
+          "parameterTypes": [
+            "java.lang.String[]"
+          ]
+        },
+        {
+          "name": "notifyPreferencesChanged",
+          "parameterTypes": [
+            "java.util.Map"
+          ]
+        },
+        {
+          "name": "notifyWillBecomeActive",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyWillFinishLaunching",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyWillHide",
+          "parameterTypes": []
+        },
+        {
+          "name": "reportException",
+          "parameterTypes": [
+            "java.lang.Throwable"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Application$EventHandler",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Clipboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.ClipboardAssistance",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.CommonDialogs",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.CommonDialogs$ExtensionFilter",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.CommonDialogs$FileChooserResult",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.CommonDialogs$Type",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Cursor",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.DelayedCallback",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.EventLoop",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.EventLoop$State",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.GestureSupport",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.GestureSupport$GestureState",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.GestureSupport$GestureState$StateId",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.GlassRobot",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.GlassRobot$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonMetrics",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$2",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$3",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$4",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$5",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$6",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$7",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$8",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$9",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonLayoutInfo",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonPlacement",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonRegion",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonRegion$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonRegion$2",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonSizeInfo",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlay$ButtonVerticalAlignment",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlayHelper",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.HeaderButtonOverlayHelper$Accessor",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.InvokeLaterDispatcher",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.InvokeLaterDispatcher$Future",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.InvokeLaterDispatcher$InvokeLaterSubmitter",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Menu",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "notifyMenuClosed",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyMenuOpening",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Menu$EventHandler",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.MenuBar",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.MenuItem",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.MenuItem$Callback",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "action",
+          "parameterTypes": []
+        },
+        {
+          "name": "validate",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Pixels",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "height"
+        },
+        {
+          "name": "scalex"
+        },
+        {
+          "name": "scaley"
+        },
+        {
+          "name": "width"
+        }
+      ],
+      "methods": [
+        {
+          "name": "attachData",
+          "parameterTypes": [
+            "long"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Pixels$Format",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Platform",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.PlatformFactory",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Screen",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "long",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "float",
+            "float",
+            "float",
+            "float"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Screen$EventHandler",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Screen[]"
+    },
+    {
+      "type": "com.sun.glass.ui.Size",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.SystemClipboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Timer",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.TouchInputSupport",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.TouchInputSupport$TouchCoord",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.TouchInputSupport$TouchCountListener",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.View",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "ptr"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getAccessible",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyDragDrop",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyDragEnd",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "notifyDragEnter",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyDragLeave",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyDragOver",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyInputMethod",
+          "parameterTypes": [
+            "java.lang.String",
+            "int[]",
+            "int[]",
+            "byte[]",
+            "int",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyInputMethodCandidatePosRequest",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "notifyKeyAndReturnConsumed",
+          "parameterTypes": [
+            "int",
+            "int",
+            "char[]",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyMenu",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "boolean"
+          ]
+        },
+        {
+          "name": "notifyMouse",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int",
+            "boolean",
+            "boolean"
+          ]
+        },
+        {
+          "name": "notifyRepaint",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyResize",
+          "parameterTypes": [
+            "int",
+            "int"
+          ]
+        },
+        {
+          "name": "notifyView",
+          "parameterTypes": [
+            "int"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.View$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.View$2",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.View$Capability",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.View$EventHandler",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Window",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "notifyClose",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyDelegatePtr",
+          "parameterTypes": [
+            "long"
+          ]
+        },
+        {
+          "name": "notifyDestroy",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyFocus",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "notifyFocusDisabled",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyFocusUngrab",
+          "parameterTypes": []
+        },
+        {
+          "name": "notifyMoveToAnotherScreen",
+          "parameterTypes": [
+            "com.sun.glass.ui.Screen"
+          ]
+        },
+        {
+          "name": "notifyScaleChanged",
+          "parameterTypes": [
+            "float",
+            "float",
+            "float",
+            "float"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Window$EventHandler",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Window$Level",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Window$State",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.Window$TrackingRectangle",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.delegate.ClipboardDelegate",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.delegate.MenuBarDelegate",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.delegate.MenuDelegate",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.delegate.MenuItemDelegate",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessApplication",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessCursor",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessPixels",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessPlatformFactory",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessPlatformFactory$HeadlessDnDClipboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessPlatformFactory$HeadlessSystemClipboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessRobot",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessRobot$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessRobot$MouseState",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessRobot$SpecialKeys",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessTimer",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessView",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessWindow",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.HeadlessWindowManager",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.NestedRunnableProcessor",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.headless.NestedRunnableProcessor$RunLoopEntry",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacAction",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacAttribute",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacNotification",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacOrientation",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacRole",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacSubrole",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacAccessible$MacText",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacApplication",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "notifyApplicationDidTerminate",
+          "parameterTypes": []
+        },
+        {
+          "name": "setEventThread",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacApplication$1",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacApplication$2",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacApplication$3",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacApplication$4",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacClipboardDelegate",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacCommonDialogs",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacCursor",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacDnDClipboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacFileNSURL",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacGestureSupport",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacMenuBarDelegate",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacMenuDelegate",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "menu"
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacPasteboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacPixels",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacPlatformFactory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ],
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacRobot",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacSystemClipboard",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacSystemClipboard$FormatEncoder",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacTimer",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacTouchInputSupport",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacTouchInputSupport$TouchPoint",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacVariant",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacView",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "notifyInputMethodMac",
+          "parameterTypes": [
+            "java.lang.String",
+            "int",
+            "int",
+            "int",
+            "int",
+            "int"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacWindow",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "notifyMove",
+          "parameterTypes": [
+            "int",
+            "int",
+            "boolean"
+          ]
+        },
+        {
+          "name": "notifyResize",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.ui.mac.MacWindow$NSWindowToolbarStyle",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.glass.utils.NativeLibLoader",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "com.sun.javafx.PreviewFeature"
+    },
+    {
+      "type": "com.sun.javafx.font.coretext.CGAffineTransform",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "a"
+        },
+        {
+          "name": "b"
+        },
+        {
+          "name": "c"
+        },
+        {
+          "name": "d"
+        },
+        {
+          "name": "tx"
+        },
+        {
+          "name": "ty"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.font.coretext.CGPoint",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "x"
+        },
+        {
+          "name": "y"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.font.coretext.CGRect",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "origin"
+        },
+        {
+          "name": "size"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.font.coretext.CGSize",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "height"
+        },
+        {
+          "name": "width"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.font.coretext.CTFactory",
+      "methods": [
+        {
+          "name": "getFactory",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.logging.PrintLogger",
+      "methods": [
+        {
+          "name": "createInstance",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.logging.jfr.JFRPulseLogger",
+      "methods": [
+        {
+          "name": "createInstance",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.scene.control.skin.Utils",
+      "methods": [
+        {
+          "name": "getResource",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.javafx.tk.quantum.QuantumToolkit",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.GraphicsPipeline",
+      "methods": [
+        {
+          "name": "getFontFactory",
+          "parameterTypes": []
+        },
+        {
+          "name": "getPipeline",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.es2.ES2Pipeline",
+      "methods": [
+        {
+          "name": "getInstance",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.es2.MacGLFactory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.shader.FillPgram_LinearGradient_PAD_Loader",
+      "methods": [
+        {
+          "name": "loadShader",
+          "parameterTypes": [
+            "com.sun.prism.ps.ShaderFactory",
+            "java.lang.String",
+            "java.io.InputStream"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.shader.FillRoundRect_Color_Loader",
+      "methods": [
+        {
+          "name": "loadShader",
+          "parameterTypes": [
+            "com.sun.prism.ps.ShaderFactory",
+            "java.lang.String",
+            "java.io.InputStream"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.shader.Solid_TextureRGB_Loader",
+      "methods": [
+        {
+          "name": "loadShader",
+          "parameterTypes": [
+            "com.sun.prism.ps.ShaderFactory",
+            "java.lang.String",
+            "java.io.InputStream"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "com.sun.prism.shader.Texture_Color_Loader",
+      "methods": [
+        {
+          "name": "loadShader",
+          "parameterTypes": [
+            "com.sun.prism.ps.ShaderFactory",
+            "java.lang.String",
+            "java.io.InputStream"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Boolean",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "FALSE"
+        },
+        {
+          "name": "TRUE"
+        }
+      ],
+      "methods": [
+        {
+          "name": "booleanValue",
+          "parameterTypes": []
+        },
+        {
+          "name": "getBoolean",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.Class",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "forName",
+          "parameterTypes": [
+            "java.lang.String",
+            "boolean",
+            "java.lang.ClassLoader"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.Integer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": [
+            "int"
+          ]
+        },
+        {
+          "name": "intValue",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.Long",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "longValue",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.Object",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "equals",
+          "parameterTypes": [
+            "java.lang.Object"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.Runnable",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "run",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.lang.String",
+      "jniAccessible": true,
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.util.Collections",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "unmodifiableMap",
+          "parameterTypes": [
+            "java.util.Map"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.util.HashMap",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.util.List",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "add",
+          "parameterTypes": [
+            "java.lang.Object"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "java.util.Map",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "get",
+          "parameterTypes": [
+            "java.lang.Object"
+          ]
+        },
+        {
+          "name": "put",
+          "parameterTypes": [
+            "java.lang.Object",
+            "java.lang.Object"
+          ]
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    },
+    {
+      "type": "javafx.animation.Interpolator"
+    },
+    {
+      "type": "javafx.css.CssParser"
+    },
+    {
+      "type": "javafx.css.Rule"
+    },
+    {
+      "type": "javafx.scene.Camera"
+    },
+    {
+      "type": "javafx.scene.Node"
+    },
+    {
+      "type": "javafx.scene.ParallelCamera"
+    },
+    {
+      "type": "javafx.scene.Parent"
+    },
+    {
+      "type": "javafx.scene.Scene"
+    },
+    {
+      "type": "javafx.scene.control.Control"
+    },
+    {
+      "type": "javafx.scene.control.Labeled"
+    },
+    {
+      "type": "javafx.scene.image.Image"
+    },
+    {
+      "type": "javafx.scene.layout.Pane"
+    },
+    {
+      "type": "javafx.scene.layout.Region"
+    },
+    {
+      "type": "javafx.scene.paint.Color",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "rgb",
+          "parameterTypes": [
+            "int",
+            "int",
+            "int",
+            "double"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "javafx.scene.paint.Color[]"
+    },
+    {
+      "type": "javafx.scene.shape.Shape"
+    },
+    {
+      "type": "javafx.scene.text.Font"
+    },
+    {
+      "type": "javafx.scene.text.Text"
+    },
+    {
+      "type": "javafx.scene.transform.Transform"
+    },
+    {
+      "type": "javafx.stage.Stage"
+    },
+    {
+      "type": "javafx.stage.Window"
+    },
+    {
+      "type": "sun.management.VMManagementImpl",
+      "jniAccessible": true,
+      "fields": [
+        {
+          "name": "compTimeMonitoringSupport"
+        },
+        {
+          "name": "currentThreadCpuTimeSupport"
+        },
+        {
+          "name": "objectMonitorUsageSupport"
+        },
+        {
+          "name": "otherThreadCpuTimeSupport"
+        },
+        {
+          "name": "remoteDiagnosticCommandsSupport"
+        },
+        {
+          "name": "synchronizerUsageSupport"
+        },
+        {
+          "name": "threadAllocatedMemorySupport"
+        },
+        {
+          "name": "threadContentionMonitoringSupport"
+        }
+      ],
+      "allDeclaredConstructors": true,
+      "allDeclaredMethods": true,
+      "allDeclaredFields": true
+    }
+  ],
+  "resources": [
+    {
+      "glob": "*.dylib"
+    },
+    {
+      "glob": "com/sun/glass/utils/NativeLibLoader.class"
+    },
+    {
+      "glob": "com/sun/javafx/scene/control/skin/modena/**"
+    },
+    {
+      "glob": "com/sun/javafx/scene/control/skin/caspian/**"
+    },
+    {
+      "glob": "com/sun/javafx/scene/control/skin/resources/*.properties"
+    },
+    {
+      "glob": "com/sun/javafx/tk/quantum/*.properties"
+    },
+    {
+      "glob": "com/sun/prism/es2/glsl/**"
+    },
+    {
+      "glob": "com/sun/prism/mtl/msl/**"
+    },
+    {
+      "glob": "com/sun/scenario/effect/impl/es2/glsl/**"
+    },
+    {
+      "glob": "styles.css"
+    }
+  ]
+}
