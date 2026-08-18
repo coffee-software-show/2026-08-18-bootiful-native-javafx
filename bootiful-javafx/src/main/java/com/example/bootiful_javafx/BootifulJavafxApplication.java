@@ -29,8 +29,11 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static org.springframework.security.oauth2.client.web.client.RequestAttributeClientRegistrationIdResolver.clientRegistrationId;
@@ -121,13 +124,19 @@ class StageInitializer {
 
     private final String api;
 
+    private final String smokeTest;
+
+    private final CountDownLatch signedIn = new CountDownLatch(1);
+
     StageInitializer(SystemBrowserOAuth2Login login, RestClient http,
                      @Value("${bootiful.oauth2.registration-id}") String registrationId,
-                     @Value("${bootiful.api-uri}") String api) {
+                     @Value("${bootiful.api-uri}") String api,
+                     @Value("${smoke.test:}") String smokeTest) {
         this.login = login;
         this.http = http;
         this.registrationId = registrationId;
         this.api = api;
+        this.smokeTest = smokeTest;
     }
 
     @EventListener
@@ -160,6 +169,7 @@ class StageInitializer {
                     status.setText("signed in via '%s'".formatted(authentication.getAuthorizedClientRegistrationId()));
                     output.setText(claims(user.getClaims()));
                     call.setDisable(false);
+                    this.signedIn.countDown();
                 });
             }, failure -> {
                 signIn.setDisable(false);
@@ -212,6 +222,53 @@ class StageInitializer {
         stage.setOnShown(e -> log.info("stage shown"));
         stage.show();
 
+        if (!this.smokeTest.isBlank()) {
+            smokeTest(signIn, call, output);
+        }
+    }
+
+    /// `-Dsmoke.test=true` drives the window once and quits; `-Dsmoke.test=login` signs in first.
+    /// This is what makes `mvn -Pagent spring-boot:run` useful: the native-image agent only records
+    /// what the run actually touches, and only writes its file on a clean JVM shutdown.
+    ///
+    /// Toggling `disable` is not busywork. A disabled control renders at reduced opacity, which is
+    /// the one thing in this window that drags in JavaFX's effects pipeline - and the effects
+    /// pipeline finds its renderer by name, so nothing but a real run will discover it.
+    private void smokeTest(Button signIn, Button call, TextArea output) {
+        Thread.ofVirtual().name("smoke-test").start(() -> {
+            try {
+                pause(Duration.ofSeconds(2));
+                if ("login".equalsIgnoreCase(this.smokeTest)) {
+                    onTheFxThread(signIn::fire);
+                    if (this.signedIn.await(90, TimeUnit.SECONDS)) {
+                        onTheFxThread(call::fire);
+                        pause(Duration.ofSeconds(5));
+                    }
+                    else {
+                        log.warn("smoke test: nobody signed in");
+                    }
+                }
+                for (var disabled : new boolean[]{false, true, false}) {
+                    onTheFxThread(() -> {
+                        call.setDisable(disabled);
+                        signIn.setDisable(!disabled);
+                        output.setText("smoke test: call %s".formatted(disabled ? "disabled" : "enabled"));
+                    });
+                    pause(Duration.ofSeconds(1));
+                }
+            }
+            catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+            finally {
+                log.info("smoke test done");
+                System.exit(0);
+            }
+        });
+    }
+
+    private static void pause(Duration duration) throws InterruptedException {
+        Thread.sleep(duration);
     }
 
     /// Sign-in and HTTP calls block; the JavaFX application thread must not. Failures come back on
