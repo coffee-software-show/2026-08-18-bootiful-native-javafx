@@ -6,24 +6,44 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ApplicationEvent;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.client.OAuth2ClientHttpRequestInterceptor;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
+import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+
+import static org.springframework.security.oauth2.client.web.client.RequestAttributeClientRegistrationIdResolver.clientRegistrationId;
 
 @SpringBootApplication
 public class BootifulJavafxApplication {
 
     public static void main(String[] args) {
+        // A desktop app has one user, not one user per thread. MODE_GLOBAL means the principal
+        // established by the sign-in is the principal every other thread - the JavaFX application
+        // thread, the RestClient interceptor - sees.
+        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_GLOBAL);
+
         // The Spring context is started here, on the main thread, on purpose:
         //
         //  1. Spring Boot's AOT processor calls this main() at build time and abandons the run
@@ -50,6 +70,30 @@ public class BootifulJavafxApplication {
 
     }
 
+    /// Non-web apps get no `OAuth2AuthorizedClientManager` from Spring Boot, so here is one. It
+    /// keeps the access token alive out of the refresh token where there is one, and falls back to
+    /// asking the user again in the browser where there isn't.
+    @Bean
+    OAuth2AuthorizedClientManager authorizedClientManager(ClientRegistrationRepository registrations,
+                                                          OAuth2AuthorizedClientService authorizedClients,
+                                                          SystemBrowserOAuth2Login login) {
+        var manager = new AuthorizedClientServiceOAuth2AuthorizedClientManager(registrations, authorizedClients);
+        manager.setAuthorizedClientProvider(OAuth2AuthorizedClientProviderBuilder.builder()
+                .refreshToken()
+                .provider(new SystemBrowserOAuth2AuthorizedClientProvider(login, authorizedClients))
+                .build());
+        return manager;
+    }
+
+    /// A `RestClient` that puts `Authorization: Bearer ...` on every request for which a
+    /// registration id was named - see [#clientRegistrationId(String)] at the call site.
+    @Bean
+    RestClient restClient(RestClient.Builder builder, OAuth2AuthorizedClientManager authorizedClientManager) {
+        return builder
+                .requestInterceptor(new OAuth2ClientHttpRequestInterceptor(authorizedClientManager))
+                .build();
+    }
+
 }
 
 class StageReadyEvent extends ApplicationEvent {
@@ -64,42 +108,97 @@ class StageReadyEvent extends ApplicationEvent {
 
 }
 
-@Service
-class GreetingService {
-
-    String greet() {
-        return "Hello, world!";
-    }
-}
-
 @Component
 class StageInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(StageInitializer.class);
 
-    private final GreetingService greetings;
+    private final SystemBrowserOAuth2Login login;
 
-    private final AtomicInteger  clicks = new AtomicInteger(0);
+    private final RestClient http;
 
-    StageInitializer(GreetingService greetings) {
-        this.greetings = greetings;
+    private final String registrationId;
+
+    private final String api;
+
+    StageInitializer(SystemBrowserOAuth2Login login, RestClient http,
+                     @Value("${bootiful.oauth2.registration-id}") String registrationId,
+                     @Value("${bootiful.api-uri}") String api) {
+        this.login = login;
+        this.http = http;
+        this.registrationId = registrationId;
+        this.api = api;
     }
 
     @EventListener
     void on(StageReadyEvent event) {
-        var greeting = new Label(this.greetings.greet());
+        var greeting = new Label("Hello, stranger.");
         greeting.getStyleClass().add("greeting");
 
-        var counter = new Label("no clicks yet");
-        var button = new Button("Click me");
-        button.setDefaultButton(true);
-        button.setOnAction(e -> counter.setText("clicked %d time(s)".formatted(this.clicks.getAndIncrement())));
+        var status = new Label("not signed in");
+        status.getStyleClass().add("subtle");
 
-        var layout = new VBox(12, greeting, button, counter);
+        var output = new TextArea();
+        output.setEditable(false);
+        output.setWrapText(true);
+        output.setPrefRowCount(10);
+
+        var signIn = new Button("Sign in with your browser");
+        signIn.setDefaultButton(true);
+
+        var call = new Button("Call the API");
+        call.setDisable(true);
+
+        signIn.setOnAction(e -> {
+            signIn.setDisable(true);
+            status.setText("finish signing in over in your browser...");
+            offTheFxThread(() -> {
+                var authentication = this.login.login(this.registrationId);
+                var user = (OidcUser) authentication.getPrincipal();
+                onTheFxThread(() -> {
+                    greeting.setText("Hello, " + name(user) + ".");
+                    status.setText("signed in via '%s'".formatted(authentication.getAuthorizedClientRegistrationId()));
+                    output.setText(claims(user.getClaims()));
+                    call.setDisable(false);
+                });
+            }, failure -> {
+                signIn.setDisable(false);
+                status.setText("sign-in failed");
+                output.setText(describe(failure));
+            });
+        });
+
+        call.setOnAction(e -> {
+            call.setDisable(true);
+            status.setText("calling " + this.api + "...");
+            offTheFxThread(() -> {
+                // No token handling here: the interceptor asks the OAuth2AuthorizedClientManager
+                // for the authorized client, refreshing it first if the access token has aged out.
+                var body = this.http.get()
+                        .uri(this.api)
+                        .attributes(clientRegistrationId(this.registrationId))
+                        .retrieve()
+                        .body(String.class);
+                onTheFxThread(() -> {
+                    status.setText("200 from " + this.api);
+                    output.setText(body);
+                    call.setDisable(false);
+                });
+            }, failure -> {
+                status.setText("the call failed");
+                output.setText(describe(failure));
+                call.setDisable(false);
+            });
+        });
+
+        var buttons = new HBox(12, signIn, call);
+        buttons.setAlignment(Pos.CENTER);
+
+        var layout = new VBox(12, greeting, status, buttons, output);
         layout.setAlignment(Pos.CENTER);
         layout.setPadding(new Insets(32));
 
-        var scene = new Scene(layout, 420, 280);
+        var scene = new Scene(layout, 620, 480);
         scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
 
         var stage = event.stage();
@@ -112,6 +211,49 @@ class StageInitializer {
         stage.setOnHidden(e -> System.exit(0));
         stage.setOnShown(e -> log.info("stage shown"));
         stage.show();
+
+    }
+
+    /// Sign-in and HTTP calls block; the JavaFX application thread must not. Failures come back on
+    /// the FX thread too, so the handler can touch the scene graph.
+    private static void offTheFxThread(Work work, Consumer<Throwable> onFailure) {
+        Thread.ofVirtual().name("bootiful-javafx-worker").start(() -> {
+            try {
+                work.run();
+            }
+            catch (Throwable throwable) {
+                log.warn("background work failed", throwable);
+                onTheFxThread(() -> onFailure.accept(throwable));
+            }
+        });
+    }
+
+    private static void onTheFxThread(Runnable runnable) {
+        Platform.runLater(runnable);
+    }
+
+    private static String name(OidcUser user) {
+        return user.getPreferredUsername() != null ? user.getPreferredUsername() : user.getName();
+    }
+
+    private static String claims(Map<String, Object> claims) {
+        return claims.entrySet()
+                .stream()
+                .map(claim -> "%s: %s".formatted(claim.getKey(), claim.getValue()))
+                .sorted()
+                .reduce((a, b) -> a + System.lineSeparator() + b)
+                .orElse("");
+    }
+
+    private static String describe(Throwable throwable) {
+        var message = throwable.getMessage();
+        return throwable.getClass().getSimpleName() + (message != null ? ": " + message : "");
+    }
+
+    @FunctionalInterface
+    interface Work {
+
+        void run() throws Exception;
 
     }
 
