@@ -44,16 +44,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/// Signs a *desktop* user in with the OAuth 2.0 authorization code grant + PKCE, driving the
-/// machine's real browser instead of an embedded one. The pieces are all Spring Security's - this
-/// class only supplies the two things a servlet app would otherwise get from the container: a place
-/// for the authorization server to redirect back to ([LoopbackRedirectListener]) and a way to put
-/// the authorization URL in front of the user ([SystemBrowser]).
-///
-/// A native browser is not a nicety. It is the only way the user can see the address bar and the TLS
-/// padlock of the site they are typing their password into, it reuses any session they already have
-/// there, and it keeps the credentials out of reach of this process. That is the whole point of
-/// RFC 8252, "OAuth 2.0 for Native Apps".
+/* Signs a *desktop* user in with the OAuth 2.0 authorization code grant + PKCE, driving the
+ machine's real browser instead of an embedded one.
+*/
 @Service
 class SystemBrowserOAuth2Login {
 
@@ -84,17 +77,15 @@ class SystemBrowserOAuth2Login {
 		this.timeout = timeout;
 	}
 
-	/// Blocks until the user finishes (or abandons) the flow in their browser, so call
-	/// this off the
-	/// JavaFX application thread.
+	/*
+	 * Blocks until the user finishes (or abandons) the flow in their browser, so call
+	 * this off the JavaFX application thread.
+	 */
 	OAuth2AuthenticationToken login(String registrationId) throws IOException {
 		var registration = this.registrations.findByRegistrationId(registrationId);
 		Assert.notNull(registration, () -> "there is no client registration called [" + registrationId + "]");
-
 		var authorizationRequest = authorizationRequest(registration);
-
-		// bind the listener *before* handing the URL to the OS: the browser cannot beat
-		// us back.
+		// bind the listener *before* handing the URL to the OS
 		try (var redirect = new LoopbackRedirectListener(URI.create(registration.getRedirectUri()))) {
 			log.info("opening the system browser to sign in with [{}]", registrationId);
 			this.browser.open(authorizationRequest.getAuthorizationRequestUri());
@@ -169,17 +160,16 @@ class SystemBrowserOAuth2Login {
 
 }
 
-/// Plugs the interactive sign-in into the
-/// [org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager],
-/// as the last resort behind the refresh token grant: when there is no access token, or
-/// the one we
-/// hold has run out and there is nothing to refresh it with, ask the user again.
-///
-/// That last resort is not hypothetical here. Spring Authorization Server - correctly -
-/// will not
-/// issue a refresh token to a *public* client, because there is nowhere safe on a user's
-/// laptop to
-/// keep one. For this pairing the browser is the renewal mechanism.
+/*
+ * Plugs the interactive sign-in into the
+ * [org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager], as the last
+ * resort behind the refresh token grant: when there is no access token, or the one we
+ * hold has run out and there is nothing to refresh it with, ask the user again.
+ *
+ * That last resort is not hypothetical here. Spring Authorization Server - correctly -
+ * will not issue a refresh token to a *public* client, because there is nowhere safe on a
+ * user's laptop to keep one. For this pairing the browser is the renewal mechanism.
+ */
 class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedClientProvider {
 
 	private static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
@@ -220,21 +210,10 @@ class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedCli
 
 }
 
-/// The redirect target of the authorization code flow: an HTTP server on the loopback
-/// interface
-/// that lives exactly as long as one sign-in. It exists to read the query string the
-/// browser was
-/// redirected to and to say something friendly back to the user.
-///
-/// The server is `com.sun.net.httpserver.HttpServer`, which has been in the JDK since 6
-/// and a
-/// supported, exported API - `jdk.httpserver` - since 9. Hand-rolling a `ServerSocket`
-/// and a
-/// request line parser here would mean owning the parts of HTTP the browser is entitled
-/// to use:
-/// keep-alive, chunking, a speculative connection opened and abandoned, a `HEAD` from a
-/// link
-/// prefetcher. This is not the place to relearn any of that.
+/*
+ * The redirect target of the authorization code flow: an HTTP server on the loopback
+ * interface that lives exactly as long as one sign-in.
+ */
 class LoopbackRedirectListener implements AutoCloseable {
 
 	private static final Logger log = LoggerFactory.getLogger(LoopbackRedirectListener.class);
@@ -254,9 +233,6 @@ class LoopbackRedirectListener implements AutoCloseable {
 
 	private final String path;
 
-	/// Handed the parameters by whichever server thread takes the redirect, and read by
-	/// the thread
-	/// sitting in [#await(Duration)] - one sign-in, one response, one hand-off.
 	private final CompletableFuture<Map<String, String>> response = new CompletableFuture<>();
 
 	LoopbackRedirectListener(URI redirectUri) throws IOException {
@@ -265,16 +241,9 @@ class LoopbackRedirectListener implements AutoCloseable {
 		this.path = redirectUri.getPath();
 		var address = new InetSocketAddress(InetAddress.getLoopbackAddress(), redirectUri.getPort());
 		this.server = HttpServer.create(address, 0, this.path, this::handle);
-		// no executor: handlers run on the server's own dispatch thread. This one only
-		// parses a
-		// query string and writes a page, and the work that *does* block - the token
-		// request -
-		// happens back on the thread in await(..).
 		this.server.start();
-		log.debug("listening for the authorization response on {}", redirectUri);
 	}
 
-	/// The authorization response parameters, once the browser delivers them.
 	Map<String, String> await(Duration timeout) throws IOException {
 		try {
 			return this.response.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -291,10 +260,11 @@ class LoopbackRedirectListener implements AutoCloseable {
 		}
 	}
 
-	/// A context matches by prefix, so this sees more than the redirect: the browser's
-	/// `/favicon.ico`, a stray `/`, a path that merely starts the same way. Anything that
-	/// is not
-	/// the response we are waiting for gets a 404 and leaves the flow running.
+	/*
+	 * A context matches by prefix, so this sees more than the redirect: the browser's
+	 * `/favicon.ico`, a stray `/`, a path that merely starts the same way. Anything that
+	 * is not the response we are waiting for gets a 404 and leaves the flow running.
+	 */
 	private void handle(HttpExchange exchange) throws IOException {
 		var parameters = parameters(exchange.getRequestURI());
 		try (exchange) {
@@ -307,9 +277,10 @@ class LoopbackRedirectListener implements AutoCloseable {
 		}
 	}
 
-	/// `/login/oauth2/code/javafx?code=...&state=...` -> the query parameters, or `null`
-	/// for
-	/// anything that isn't the redirect we're waiting for.
+	/*
+	 * `/login/oauth2/code/javafx?code=...&state=...` -> the query parameters, or `null`
+	 * for anything that isn't the redirect we're waiting for.
+	 */
 	private Map<String, String> parameters(URI target) {
 		if (!this.path.equals(target.getPath()) || target.getRawQuery() == null) {
 			return null;
@@ -339,19 +310,16 @@ class LoopbackRedirectListener implements AutoCloseable {
 
 	@Override
 	public void close() {
-		// stop(0): drop the listening socket now, and don't sit around waiting on a
-		// browser that
-		// is holding a keep-alive connection open for a page it is never going to ask
-		// for.
+		/*
+		 * stop(0): drop the listening socket now, and don't sit around waiting on a
+		 * browser that is holding a keep-alive connection open for a page it is never
+		 * going to ask for.
+		 **/
 		this.server.stop(0);
 	}
 
 }
 
-/// How the authorization request gets in front of the user. There is only one sane answer
-/// in
-/// production - [SystemBrowser] - but naming the step keeps the flow testable without
-/// one.
 @FunctionalInterface
 interface AuthorizationBrowser {
 
@@ -359,15 +327,8 @@ interface AuthorizationBrowser {
 
 }
 
-/// Hands the URL to whatever the OS considers the user's browser. `java.awt.Desktop`
-/// would do this
-/// too, but dragging AWT into a JavaFX process - and into a GraalVM native image - to
-/// shell out to
-/// `open(1)` is a poor trade.
 @Component
 class SystemBrowser implements AuthorizationBrowser {
-
-	private static final Logger log = LoggerFactory.getLogger(SystemBrowser.class);
 
 	@Override
 	public void open(String authorizationRequestUri) throws IOException {
@@ -375,7 +336,6 @@ class SystemBrowser implements AuthorizationBrowser {
 		var command = os.contains("mac") ? List.of("open", authorizationRequestUri)
 				: os.contains("win") ? List.of("rundll32", "url.dll,FileProtocolHandler", authorizationRequestUri)
 						: List.of("xdg-open", authorizationRequestUri);
-		log.debug("running {}", command);
 		new ProcessBuilder(command).start();
 	}
 
