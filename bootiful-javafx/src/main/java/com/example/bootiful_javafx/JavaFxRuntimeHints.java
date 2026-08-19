@@ -8,16 +8,26 @@ import java.util.List;
 import java.util.stream.Stream;
 
 ///
-/// This is the `META-INF/native-image/org.openjfx/javafx/reachability-metadata.json` the
+/// This began as the `META-INF/native-image/org.openjfx/javafx/reachability-metadata.json` the
 /// native-image agent recorded (`mvn -Pagent spring-boot:run`), rewritten as a
 /// [RuntimeHintsRegistrar] so it compiles, so it can carry an explanation of *why* each family is
 /// in the list, and so it arrives by the same route as every other hint Spring's AOT processing
 /// contributes.
 ///
-/// The agent records reflection down to the individual method. This does not. A class that
-/// JavaFX only ever finds by name is a class whose members we cannot predict, so every type here
-/// is registered for every [MemberCategory] - and asking for `values()` rather than naming them
-/// keeps that true when a future Spring adds one.
+/// What it lists now is packages rather than classes. The agent records reflection down to the
+/// individual method, and one recording's worth of methods on one recording's worth of classes is
+/// exactly the thing that goes stale: a class JavaFX only ever finds by name is a class whose
+/// members we cannot predict, and a *package* JavaFX finds classes by name in is a package whose
+/// classes we cannot predict either. So the packages are named, [HintsUtils] finds what is in them
+/// - nested, anonymous and synthetic classes included, since those are class files sitting in the
+/// same directory - and every type it finds is registered for every [MemberCategory]. Asking for
+/// `values()` rather than naming the categories keeps that true the day Spring adds one; scanning
+/// rather than enumerating keeps it true the day OpenJFX adds a shader.
+///
+/// The cost is honest: this registers on the order of a couple of thousand types where the
+/// recording named five hundred, which the image pays for in size. The benefit is that a JavaFX
+/// upgrade cannot silently take a class out from under it.
+///
 class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 
     /// Everything, asked for as `values()` rather than spelled out, so it stays everything the day
@@ -31,317 +41,94 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
     /// Glass is the sliver of JavaFX that sits on the platform's own windowing toolkit, and the
     /// traffic runs both ways: Cocoa delivers an event, and the native side reaches back into
     /// Java through JNI, looking up the class, the field or the method by name. Those lookups are
-    /// invisible to native-image's static analysis, so every type the native side names is
-    /// registered here for JNI as well as for reflection - including the handful of JDK types
-    /// (`java.lang.Boolean`, `java.util.HashMap`) Glass constructs on the way back up.
+    /// invisible to native-image's static analysis, so every type in these packages is registered
+    /// for JNI as well as for reflection.
     ///
     /// Much of this is platform-specific - `com.sun.glass.ui.mac` only exists in the macOS
-    /// classifier of javafx-graphics - which is why registration goes through
-    /// `registerTypeIfPresent`: on another platform those names simply are not there.
-    private static final List<String> NATIVE_CALLBACKS = types(
-            in("com.sun.glass.events",
-                    "DndEvent", "GestureEvent", "KeyEvent", "MouseEvent", "SwipeGesture", "TouchEvent",
-                    "ViewEvent", "WheelEvent", "WindowEvent"),
-            in("com.sun.glass.ui",
-                    "Accessible", "Accessible$EventHandler", "Accessible$ExecuteAction",
-                    "Accessible$GetAttribute", "Application", "Application$EventHandler", "Clipboard",
-                    "ClipboardAssistance", "CommonDialogs", "CommonDialogs$ExtensionFilter",
-                    "CommonDialogs$FileChooserResult", "CommonDialogs$Type", "Cursor", "DelayedCallback",
-                    "EventLoop", "EventLoop$State", "GestureSupport", "GestureSupport$GestureState",
-                    "GestureSupport$GestureState$StateId", "GlassRobot", "GlassRobot$1", "HeaderButtonMetrics",
-                    "HeaderButtonOverlay", "HeaderButtonOverlay$1", "HeaderButtonOverlay$2",
-                    "HeaderButtonOverlay$3", "HeaderButtonOverlay$4", "HeaderButtonOverlay$5",
-                    "HeaderButtonOverlay$6", "HeaderButtonOverlay$7", "HeaderButtonOverlay$8",
-                    "HeaderButtonOverlay$9", "HeaderButtonOverlay$ButtonLayoutInfo",
-                    "HeaderButtonOverlay$ButtonPlacement", "HeaderButtonOverlay$ButtonRegion",
-                    "HeaderButtonOverlay$ButtonRegion$1", "HeaderButtonOverlay$ButtonRegion$2",
-                    "HeaderButtonOverlay$ButtonSizeInfo", "HeaderButtonOverlay$ButtonVerticalAlignment",
-                    "HeaderButtonOverlayHelper", "HeaderButtonOverlayHelper$Accessor", "InvokeLaterDispatcher",
-                    "InvokeLaterDispatcher$Future", "InvokeLaterDispatcher$InvokeLaterSubmitter", "Menu",
-                    "Menu$EventHandler", "MenuBar", "MenuItem", "MenuItem$Callback", "Pixels", "Pixels$Format",
-                    "Platform", "PlatformFactory", "Screen", "Screen$EventHandler", "Size", "SystemClipboard",
-                    "Timer", "TouchInputSupport", "TouchInputSupport$TouchCoord",
-                    "TouchInputSupport$TouchCountListener", "View", "View$1", "View$2", "View$Capability",
-                    "View$EventHandler", "Window", "Window$EventHandler", "Window$Level", "Window$State",
-                    "Window$TrackingRectangle"),
-            in("com.sun.glass.ui.delegate",
-                    "ClipboardDelegate", "MenuBarDelegate", "MenuDelegate", "MenuItemDelegate"),
-            in("com.sun.glass.ui.headless",
-                    "HeadlessApplication", "HeadlessCursor", "HeadlessPixels", "HeadlessPlatformFactory",
-                    "HeadlessPlatformFactory$HeadlessDnDClipboard",
-                    "HeadlessPlatformFactory$HeadlessSystemClipboard", "HeadlessRobot", "HeadlessRobot$1",
-                    "HeadlessRobot$MouseState", "HeadlessRobot$SpecialKeys", "HeadlessTimer", "HeadlessView",
-                    "HeadlessWindow", "HeadlessWindowManager", "NestedRunnableProcessor",
-                    "NestedRunnableProcessor$RunLoopEntry"),
-            in("com.sun.glass.ui.mac",
-                    "MacAccessible", "MacAccessible$1", "MacAccessible$MacAction", "MacAccessible$MacAttribute",
-                    "MacAccessible$MacNotification", "MacAccessible$MacOrientation", "MacAccessible$MacRole",
-                    "MacAccessible$MacSubrole", "MacAccessible$MacText", "MacApplication", "MacApplication$1",
-                    "MacApplication$2", "MacApplication$3", "MacApplication$4", "MacClipboardDelegate",
-                    "MacCommonDialogs", "MacCursor", "MacDnDClipboard", "MacFileNSURL", "MacGestureSupport",
-                    "MacMenuBarDelegate", "MacMenuDelegate", "MacPasteboard", "MacPixels", "MacPlatformFactory",
-                    "MacRobot", "MacSystemClipboard", "MacSystemClipboard$FormatEncoder", "MacTimer",
-                    "MacTouchInputSupport", "MacTouchInputSupport$TouchPoint", "MacVariant", "MacView",
-                    "MacWindow", "MacWindow$NSWindowToolbarStyle"),
-            in("com.sun.glass.utils",
-                    "NativeLibLoader"),
-            in("com.sun.javafx.font.coretext",
-                    "CGAffineTransform", "CGPoint", "CGRect", "CGSize"),
-            in("java.lang",
-                    "Boolean", "Class", "Integer", "Long", "Object", "Runnable", "String"),
-            in("java.util",
-                    "Collections", "HashMap", "List", "Map"),
-            in("javafx.scene.paint",
-                    "Color"),
-            in("javafx.scene.shape",
-                    "LineTo", "MoveTo"),
-            in("sun.management",
-                    "VMManagementImpl")
-    );
+    /// classifier of javafx-graphics - and on another platform the scan simply comes back empty.
+    private static final List<String> NATIVE_CALLBACKS = List.of(
+            "com.sun.glass.events",
+            "com.sun.glass.ui",
+            "com.sun.glass.ui.delegate",
+            "com.sun.glass.ui.headless",
+            "com.sun.glass.ui.mac",
+            "com.sun.glass.utils",
+            "com.sun.javafx.font.coretext");
 
     /// Prism builds a shader's class name out of the paint, the blend mode and the pipeline, then
     /// asks for it by that name. No amount of static analysis follows a string concatenation into
-    /// a class, and no single run of the app touches more than a few, so the whole family is
-    /// registered wholesale rather than one recording's worth.
-    private static final List<String> PRISM_SHADERS =
-            in("com.sun.prism.shader",
-                    "AlphaOne_Color_AlphaTest_Loader", "AlphaOne_Color_Loader",
-                    "AlphaOne_ImagePattern_AlphaTest_Loader", "AlphaOne_ImagePattern_Loader",
-                    "AlphaOne_LinearGradient_AlphaTest_Loader", "AlphaOne_LinearGradient_Loader",
-                    "AlphaOne_RadialGradient_AlphaTest_Loader", "AlphaOne_RadialGradient_Loader",
-                    "AlphaTextureDifference_Color_AlphaTest_Loader", "AlphaTextureDifference_Color_Loader",
-                    "AlphaTextureDifference_ImagePattern_AlphaTest_Loader",
-                    "AlphaTextureDifference_ImagePattern_Loader",
-                    "AlphaTextureDifference_LinearGradient_AlphaTest_Loader",
-                    "AlphaTextureDifference_LinearGradient_Loader",
-                    "AlphaTextureDifference_RadialGradient_AlphaTest_Loader",
-                    "AlphaTextureDifference_RadialGradient_Loader", "AlphaTexture_Color_AlphaTest_Loader",
-                    "AlphaTexture_Color_Loader", "AlphaTexture_ImagePattern_AlphaTest_Loader",
-                    "AlphaTexture_ImagePattern_Loader", "AlphaTexture_LinearGradient_AlphaTest_Loader",
-                    "AlphaTexture_LinearGradient_Loader", "AlphaTexture_RadialGradient_AlphaTest_Loader",
-                    "AlphaTexture_RadialGradient_Loader", "DrawCircle_Color_AlphaTest_Loader",
-                    "DrawCircle_Color_Loader", "DrawCircle_ImagePattern_AlphaTest_Loader",
-                    "DrawCircle_ImagePattern_Loader", "DrawCircle_LinearGradient_PAD_AlphaTest_Loader",
-                    "DrawCircle_LinearGradient_PAD_Loader", "DrawCircle_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "DrawCircle_LinearGradient_REFLECT_Loader", "DrawCircle_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "DrawCircle_LinearGradient_REPEAT_Loader", "DrawCircle_RadialGradient_PAD_AlphaTest_Loader",
-                    "DrawCircle_RadialGradient_PAD_Loader", "DrawCircle_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "DrawCircle_RadialGradient_REFLECT_Loader", "DrawCircle_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "DrawCircle_RadialGradient_REPEAT_Loader", "DrawEllipse_Color_AlphaTest_Loader",
-                    "DrawEllipse_Color_Loader", "DrawEllipse_ImagePattern_AlphaTest_Loader",
-                    "DrawEllipse_ImagePattern_Loader", "DrawEllipse_LinearGradient_PAD_AlphaTest_Loader",
-                    "DrawEllipse_LinearGradient_PAD_Loader", "DrawEllipse_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "DrawEllipse_LinearGradient_REFLECT_Loader",
-                    "DrawEllipse_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "DrawEllipse_LinearGradient_REPEAT_Loader", "DrawEllipse_RadialGradient_PAD_AlphaTest_Loader",
-                    "DrawEllipse_RadialGradient_PAD_Loader", "DrawEllipse_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "DrawEllipse_RadialGradient_REFLECT_Loader",
-                    "DrawEllipse_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "DrawEllipse_RadialGradient_REPEAT_Loader", "DrawPgram_Color_AlphaTest_Loader",
-                    "DrawPgram_Color_Loader", "DrawPgram_ImagePattern_AlphaTest_Loader",
-                    "DrawPgram_ImagePattern_Loader", "DrawPgram_LinearGradient_PAD_AlphaTest_Loader",
-                    "DrawPgram_LinearGradient_PAD_Loader", "DrawPgram_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "DrawPgram_LinearGradient_REFLECT_Loader", "DrawPgram_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "DrawPgram_LinearGradient_REPEAT_Loader", "DrawPgram_RadialGradient_PAD_AlphaTest_Loader",
-                    "DrawPgram_RadialGradient_PAD_Loader", "DrawPgram_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "DrawPgram_RadialGradient_REFLECT_Loader", "DrawPgram_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "DrawPgram_RadialGradient_REPEAT_Loader", "DrawRoundRect_Color_AlphaTest_Loader",
-                    "DrawRoundRect_Color_Loader", "DrawRoundRect_ImagePattern_AlphaTest_Loader",
-                    "DrawRoundRect_ImagePattern_Loader", "DrawRoundRect_LinearGradient_PAD_AlphaTest_Loader",
-                    "DrawRoundRect_LinearGradient_PAD_Loader",
-                    "DrawRoundRect_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "DrawRoundRect_LinearGradient_REFLECT_Loader",
-                    "DrawRoundRect_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "DrawRoundRect_LinearGradient_REPEAT_Loader",
-                    "DrawRoundRect_RadialGradient_PAD_AlphaTest_Loader", "DrawRoundRect_RadialGradient_PAD_Loader",
-                    "DrawRoundRect_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "DrawRoundRect_RadialGradient_REFLECT_Loader",
-                    "DrawRoundRect_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "DrawRoundRect_RadialGradient_REPEAT_Loader", "DrawSemiRoundRect_Color_AlphaTest_Loader",
-                    "DrawSemiRoundRect_Color_Loader", "DrawSemiRoundRect_ImagePattern_AlphaTest_Loader",
-                    "DrawSemiRoundRect_ImagePattern_Loader",
-                    "DrawSemiRoundRect_LinearGradient_PAD_AlphaTest_Loader",
-                    "DrawSemiRoundRect_LinearGradient_PAD_Loader",
-                    "DrawSemiRoundRect_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "DrawSemiRoundRect_LinearGradient_REFLECT_Loader",
-                    "DrawSemiRoundRect_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "DrawSemiRoundRect_LinearGradient_REPEAT_Loader",
-                    "DrawSemiRoundRect_RadialGradient_PAD_AlphaTest_Loader",
-                    "DrawSemiRoundRect_RadialGradient_PAD_Loader",
-                    "DrawSemiRoundRect_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "DrawSemiRoundRect_RadialGradient_REFLECT_Loader",
-                    "DrawSemiRoundRect_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "DrawSemiRoundRect_RadialGradient_REPEAT_Loader", "FillCircle_Color_AlphaTest_Loader",
-                    "FillCircle_Color_Loader", "FillCircle_ImagePattern_AlphaTest_Loader",
-                    "FillCircle_ImagePattern_Loader", "FillCircle_LinearGradient_PAD_AlphaTest_Loader",
-                    "FillCircle_LinearGradient_PAD_Loader", "FillCircle_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "FillCircle_LinearGradient_REFLECT_Loader", "FillCircle_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "FillCircle_LinearGradient_REPEAT_Loader", "FillCircle_RadialGradient_PAD_AlphaTest_Loader",
-                    "FillCircle_RadialGradient_PAD_Loader", "FillCircle_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "FillCircle_RadialGradient_REFLECT_Loader", "FillCircle_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "FillCircle_RadialGradient_REPEAT_Loader", "FillEllipse_Color_AlphaTest_Loader",
-                    "FillEllipse_Color_Loader", "FillEllipse_ImagePattern_AlphaTest_Loader",
-                    "FillEllipse_ImagePattern_Loader", "FillEllipse_LinearGradient_PAD_AlphaTest_Loader",
-                    "FillEllipse_LinearGradient_PAD_Loader", "FillEllipse_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "FillEllipse_LinearGradient_REFLECT_Loader",
-                    "FillEllipse_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "FillEllipse_LinearGradient_REPEAT_Loader", "FillEllipse_RadialGradient_PAD_AlphaTest_Loader",
-                    "FillEllipse_RadialGradient_PAD_Loader", "FillEllipse_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "FillEllipse_RadialGradient_REFLECT_Loader",
-                    "FillEllipse_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "FillEllipse_RadialGradient_REPEAT_Loader", "FillPgram_Color_AlphaTest_Loader",
-                    "FillPgram_Color_Loader", "FillPgram_ImagePattern_AlphaTest_Loader",
-                    "FillPgram_ImagePattern_Loader", "FillPgram_LinearGradient_PAD_AlphaTest_Loader",
-                    "FillPgram_LinearGradient_PAD_Loader", "FillPgram_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "FillPgram_LinearGradient_REFLECT_Loader", "FillPgram_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "FillPgram_LinearGradient_REPEAT_Loader", "FillPgram_RadialGradient_PAD_AlphaTest_Loader",
-                    "FillPgram_RadialGradient_PAD_Loader", "FillPgram_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "FillPgram_RadialGradient_REFLECT_Loader", "FillPgram_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "FillPgram_RadialGradient_REPEAT_Loader", "FillRoundRect_Color_AlphaTest_Loader",
-                    "FillRoundRect_Color_Loader", "FillRoundRect_ImagePattern_AlphaTest_Loader",
-                    "FillRoundRect_ImagePattern_Loader", "FillRoundRect_LinearGradient_PAD_AlphaTest_Loader",
-                    "FillRoundRect_LinearGradient_PAD_Loader",
-                    "FillRoundRect_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "FillRoundRect_LinearGradient_REFLECT_Loader",
-                    "FillRoundRect_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "FillRoundRect_LinearGradient_REPEAT_Loader",
-                    "FillRoundRect_RadialGradient_PAD_AlphaTest_Loader", "FillRoundRect_RadialGradient_PAD_Loader",
-                    "FillRoundRect_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "FillRoundRect_RadialGradient_REFLECT_Loader",
-                    "FillRoundRect_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "FillRoundRect_RadialGradient_REPEAT_Loader", "Mask_TextureRGB_AlphaTest_Loader",
-                    "Mask_TextureRGB_Loader", "Mask_TextureSuper_AlphaTest_Loader", "Mask_TextureSuper_Loader",
-                    "Solid_Color_AlphaTest_Loader", "Solid_Color_Loader", "Solid_ImagePattern_AlphaTest_Loader",
-                    "Solid_ImagePattern_Loader", "Solid_LinearGradient_PAD_AlphaTest_Loader",
-                    "Solid_LinearGradient_PAD_Loader", "Solid_LinearGradient_REFLECT_AlphaTest_Loader",
-                    "Solid_LinearGradient_REFLECT_Loader", "Solid_LinearGradient_REPEAT_AlphaTest_Loader",
-                    "Solid_LinearGradient_REPEAT_Loader", "Solid_RadialGradient_PAD_AlphaTest_Loader",
-                    "Solid_RadialGradient_PAD_Loader", "Solid_RadialGradient_REFLECT_AlphaTest_Loader",
-                    "Solid_RadialGradient_REFLECT_Loader", "Solid_RadialGradient_REPEAT_AlphaTest_Loader",
-                    "Solid_RadialGradient_REPEAT_Loader", "Solid_TextureFirstPassLCD_AlphaTest_Loader",
-                    "Solid_TextureFirstPassLCD_Loader", "Solid_TextureRGB_AlphaTest_Loader",
-                    "Solid_TextureRGB_Loader", "Solid_TextureSecondPassLCD_AlphaTest_Loader",
-                    "Solid_TextureSecondPassLCD_Loader", "Solid_TextureYV12_AlphaTest_Loader",
-                    "Solid_TextureYV12_Loader", "Texture_Color_AlphaTest_Loader", "Texture_Color_Loader",
-                    "Texture_ImagePattern_AlphaTest_Loader", "Texture_ImagePattern_Loader",
-                    "Texture_LinearGradient_PAD_AlphaTest_Loader", "Texture_LinearGradient_PAD_Loader",
-                    "Texture_LinearGradient_REFLECT_AlphaTest_Loader", "Texture_LinearGradient_REFLECT_Loader",
-                    "Texture_LinearGradient_REPEAT_AlphaTest_Loader", "Texture_LinearGradient_REPEAT_Loader",
-                    "Texture_RadialGradient_PAD_AlphaTest_Loader", "Texture_RadialGradient_PAD_Loader",
-                    "Texture_RadialGradient_REFLECT_AlphaTest_Loader", "Texture_RadialGradient_REFLECT_Loader",
-                    "Texture_RadialGradient_REPEAT_AlphaTest_Loader", "Texture_RadialGradient_REPEAT_Loader");
+    /// a class, and no single run of the app touches more than a few, so the package goes in
+    /// wholesale rather than one recording's worth of it.
+    private static final List<String> PRISM_SHADERS = List.of(
+            "com.sun.prism.shader");
 
     /// The effects pipeline resolves a peer per renderer - hand-written Java, SSE intrinsics,
     /// Prism shaders, Metal - by name, for the same reason and with the same blind spot. Reduced
     /// opacity on a disabled control is enough to pull one of these in, which is what the
     /// `-Dsmoke.test` toggling in [StageInitializer] is there to exercise.
-    private static final List<String> EFFECT_PEERS = types(
-            in("com.sun.scenario.effect.impl.es2",
-                    "ES2ShaderSource"),
-            in("com.sun.scenario.effect.impl.hw.mtl",
-                    "MTLShaderSource"),
-            in("com.sun.scenario.effect.impl.prism",
-                    "PrRenderer"),
-            in("com.sun.scenario.effect.impl.prism.ps",
-                    "PPSBlend_ADDPeer", "PPSBlend_BLUEPeer", "PPSBlend_COLOR_BURNPeer",
-                    "PPSBlend_COLOR_DODGEPeer", "PPSBlend_DARKENPeer", "PPSBlend_DIFFERENCEPeer",
-                    "PPSBlend_EXCLUSIONPeer", "PPSBlend_GREENPeer", "PPSBlend_HARD_LIGHTPeer",
-                    "PPSBlend_LIGHTENPeer", "PPSBlend_MULTIPLYPeer", "PPSBlend_OVERLAYPeer", "PPSBlend_REDPeer",
-                    "PPSBlend_SCREENPeer", "PPSBlend_SOFT_LIGHTPeer", "PPSBlend_SRC_ATOPPeer",
-                    "PPSBlend_SRC_INPeer", "PPSBlend_SRC_OUTPeer", "PPSBlend_SRC_OVERPeer", "PPSBrightpassPeer",
-                    "PPSColorAdjustPeer", "PPSDisplacementMapPeer", "PPSEffectPeer", "PPSInvertMaskPeer",
-                    "PPSLinearConvolvePeer", "PPSLinearConvolveShadowPeer", "PPSOneSamplerPeer",
-                    "PPSPerspectiveTransformPeer", "PPSPhongLighting_DISTANTPeer", "PPSPhongLighting_POINTPeer",
-                    "PPSPhongLighting_SPOTPeer", "PPSRenderer", "PPSSepiaTonePeer", "PPSTwoSamplerPeer",
-                    "PPSZeroSamplerPeer", "PPStoPSWDisplacementMapPeer"),
-            in("com.sun.scenario.effect.impl.prism.sw",
-                    "PSWRenderer"),
-            in("com.sun.scenario.effect.impl.sw.java",
-                    "JSWBlend_ADDPeer", "JSWBlend_BLUEPeer", "JSWBlend_COLOR_BURNPeer",
-                    "JSWBlend_COLOR_DODGEPeer", "JSWBlend_DARKENPeer", "JSWBlend_DIFFERENCEPeer",
-                    "JSWBlend_EXCLUSIONPeer", "JSWBlend_GREENPeer", "JSWBlend_HARD_LIGHTPeer",
-                    "JSWBlend_LIGHTENPeer", "JSWBlend_MULTIPLYPeer", "JSWBlend_OVERLAYPeer", "JSWBlend_REDPeer",
-                    "JSWBlend_SCREENPeer", "JSWBlend_SOFT_LIGHTPeer", "JSWBlend_SRC_ATOPPeer",
-                    "JSWBlend_SRC_INPeer", "JSWBlend_SRC_OUTPeer", "JSWBlend_SRC_OVERPeer", "JSWBoxBlurPeer",
-                    "JSWBoxShadowPeer", "JSWBrightpassPeer", "JSWColorAdjustPeer", "JSWDisplacementMapPeer",
-                    "JSWEffectPeer", "JSWInvertMaskPeer", "JSWLinearConvolvePeer",
-                    "JSWLinearConvolveShadowPeer", "JSWPerspectiveTransformPeer",
-                    "JSWPhongLighting_DISTANTPeer", "JSWPhongLighting_POINTPeer", "JSWPhongLighting_SPOTPeer",
-                    "JSWRendererDelegate", "JSWSepiaTonePeer"),
-            in("com.sun.scenario.effect.impl.sw.sse",
-                    "SSEBlend_ADDPeer", "SSEBlend_BLUEPeer", "SSEBlend_COLOR_BURNPeer",
-                    "SSEBlend_COLOR_DODGEPeer", "SSEBlend_DARKENPeer", "SSEBlend_DIFFERENCEPeer",
-                    "SSEBlend_EXCLUSIONPeer", "SSEBlend_GREENPeer", "SSEBlend_HARD_LIGHTPeer",
-                    "SSEBlend_LIGHTENPeer", "SSEBlend_MULTIPLYPeer", "SSEBlend_OVERLAYPeer", "SSEBlend_REDPeer",
-                    "SSEBlend_SCREENPeer", "SSEBlend_SOFT_LIGHTPeer", "SSEBlend_SRC_ATOPPeer",
-                    "SSEBlend_SRC_INPeer", "SSEBlend_SRC_OUTPeer", "SSEBlend_SRC_OVERPeer", "SSEBoxBlurPeer",
-                    "SSEBoxShadowPeer", "SSEBrightpassPeer", "SSEColorAdjustPeer", "SSEDisplacementMapPeer",
-                    "SSEEffectPeer", "SSEInvertMaskPeer", "SSELinearConvolvePeer",
-                    "SSELinearConvolveShadowPeer", "SSEPerspectiveTransformPeer",
-                    "SSEPhongLighting_DISTANTPeer", "SSEPhongLighting_POINTPeer", "SSEPhongLighting_SPOTPeer",
-                    "SSERendererDelegate", "SSESepiaTonePeer")
-    );
+    private static final List<String> EFFECT_PEERS = List.of(
+            "com.sun.scenario.effect.impl.es2",
+            "com.sun.scenario.effect.impl.hw.mtl",
+            "com.sun.scenario.effect.impl.prism",
+            "com.sun.scenario.effect.impl.prism.ps",
+            "com.sun.scenario.effect.impl.prism.sw",
+            "com.sun.scenario.effect.impl.sw.java",
+            "com.sun.scenario.effect.impl.sw.sse");
 
     /// The CSS engine turns a selector into a class: `styles.css` naming `.greeting` sends it
     /// looking for the Java type behind the styleable, and property lookups on the way to a
-    /// computed value go through reflection too.
-    private static final List<String> PUBLIC_API = types(
-            in("javafx.animation",
-                    "Interpolator"),
-            in("javafx.application",
-                    "Platform"),
-            in("javafx.collections",
-                    "ObservableList"),
-            in("javafx.css",
-                    "CssParser", "Rule"),
-            in("javafx.event",
-                    "ActionEvent", "Event", "EventHandler"),
-            in("javafx.geometry",
-                    "Insets", "Pos"),
-            in("javafx.scene",
-                    "Camera", "Group", "Node", "ParallelCamera", "Parent", "Scene"),
-            in("javafx.scene.control",
-                    "Button", "Control", "Label", "Labeled", "TextArea"),
-            in("javafx.scene.effect",
-                    "Effect"),
-            in("javafx.scene.image",
-                    "Image"),
-            in("javafx.scene.layout",
-                    "HBox", "Pane", "Region", "VBox"),
-            in("javafx.scene.paint",
-                    "Color[]"),
-            in("javafx.scene.shape",
-                    "Path", "PathElement", "Rectangle", "SVGPath", "Shape"),
-            in("javafx.scene.text",
-                    "Font", "Text"),
-            in("javafx.scene.transform",
-                    "Transform"),
-            in("javafx.stage",
-                    "PopupWindow", "Stage", "Window", "WindowEvent")
-    );
+    /// computed value go through reflection too. Which types a stylesheet will name is a question
+    /// about the stylesheet, not about the app, so the public API packages go in whole.
+    private static final List<String> PUBLIC_API = List.of(
+            "javafx.animation",
+            "javafx.application",
+            "javafx.collections",
+            "javafx.css",
+            "javafx.event",
+            "javafx.geometry",
+            "javafx.scene",
+            "javafx.scene.control",
+            "javafx.scene.effect",
+            "javafx.scene.image",
+            "javafx.scene.layout",
+            "javafx.scene.paint",
+            "javafx.scene.shape",
+            "javafx.scene.text",
+            "javafx.scene.transform",
+            "javafx.stage");
 
     /// The rest of the toolkit's own by-name plumbing: the pipeline and font factory it selects
     /// from a system property, the logger it picks depending on whether JFR is around.
-    private static final List<String> TOOLKIT = types(
-            in("com.sun.glass.ui",
-                    "Screen[]"),
-            in("com.sun.javafx",
-                    "PreviewFeature"),
-            in("com.sun.javafx.font.coretext",
-                    "CTFactory"),
-            in("com.sun.javafx.logging",
-                    "PrintLogger"),
-            in("com.sun.javafx.logging.jfr",
-                    "JFRPulseLogger"),
-            in("com.sun.javafx.scene.control.skin",
-                    "Utils"),
-            in("com.sun.javafx.tk.quantum",
-                    "QuantumToolkit"),
-            in("com.sun.prism",
-                    "GraphicsPipeline"),
-            in("com.sun.prism.es2",
-                    "ES2Pipeline", "MacGLFactory")
-    );
+    private static final List<String> TOOLKIT = List.of(
+            "com.sun.javafx",
+            "com.sun.javafx.logging",
+            "com.sun.javafx.logging.jfr",
+            "com.sun.javafx.scene.control.skin",
+            "com.sun.javafx.tk.quantum",
+            "com.sun.prism",
+            "com.sun.prism.es2");
+
+    /// The last names spelled out one by one, for the two reasons a package will not do.
+    ///
+    /// The JDK's own types - the `java.lang.Boolean` Glass boxes a result into on its way back up
+    /// through JNI, the `sun.management.VMManagementImpl` the toolkit asks the VM about - live in
+    /// the runtime image rather than on the classpath, so there is no class file for a scan to
+    /// find. And `Color`, `LineTo` and `MoveTo` are the only members of packages already scanned
+    /// for reflection that the native side also constructs, so naming them here keeps the JNI
+    /// surface to what actually crosses that boundary rather than two more whole packages.
+    /// Registration is conditional: none of these is guaranteed to be present.
+    private static final List<String> NATIVE_CALLBACK_TYPES = types(
+            in("java.lang", Boolean.class.getName(), Class.class.getName(), Integer.class.getName(),
+                    Long.class.getName(), Object.class.getName(), Runnable.class.getName(), String.class.getName()),
+            in("java.util", "Collections", "HashMap", "List", "Map"),
+            in("javafx.scene.paint", "Color"),
+            in("javafx.scene.shape", "LineTo", "MoveTo"),
+            in("sun.management", "VMManagementImpl"));
+
+    /// An array type has no class file of its own, so no scan will ever turn one up.
+    private static final List<String> ARRAYS = types(
+            in("com.sun.glass.ui", "Screen[]"),
+            in("javafx.scene.paint", "Color[]"));
 
     /// Resources JavaFX loads off the classpath: the native libraries it unpacks and dlopen()s,
     /// the Modena and Caspian stylesheets, the shader programs, and the control skins'
@@ -356,31 +143,41 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
             "com/sun/prism/es2/glsl/**",
             "com/sun/prism/mtl/msl/**",
             "com/sun/scenario/effect/impl/es2/glsl/**",
-            "styles.css");
+            "styles.css"
+    );
 
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-        reflective().forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING));
-        NATIVE_CALLBACKS.forEach(type -> hints.jni().registerTypeIfPresent(classLoader, type, EVERYTHING));
-        RESOURCES.forEach(hints.resources()::registerPattern);
-    }
+        
+        // everything wants reflection, the JNI-reachable packages included - JNI registration is
+        // on top of that, not instead of it
+        var reflective = types(NATIVE_CALLBACKS, PRISM_SHADERS, EFFECT_PEERS, PUBLIC_API, TOOLKIT);
+        HintsUtils.findClassesInPackages(classLoader, reflective)
+                .forEach(type -> hints.reflection().registerType(type, EVERYTHING));
 
-    /// Everything wants reflection, the JNI-reachable types included - JNI registration is on top
-    /// of that, not instead of it.
-    private static List<String> reflective() {
-        return types(NATIVE_CALLBACKS, PRISM_SHADERS, EFFECT_PEERS, PUBLIC_API, TOOLKIT);
+        HintsUtils.findClassesInPackages(classLoader, NATIVE_CALLBACKS)
+                .forEach(type -> hints.jni().registerType(type, EVERYTHING));
+
+        NATIVE_CALLBACK_TYPES.forEach(type -> {
+            hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING);
+            hints.jni().registerTypeIfPresent(classLoader, type, EVERYTHING);
+        });
+
+        ARRAYS.forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING));
+
+        RESOURCES.forEach(hints.resources()::registerPattern);
     }
 
     private static boolean isDeprecated(MemberCategory category) {
         try {
             return MemberCategory.class.getField(category.name()).isAnnotationPresent(Deprecated.class);
-        }
-        catch (NoSuchFieldException noSuchField) {
+        } catch (NoSuchFieldException noSuchField) {
             throw new IllegalStateException(noSuchField);
         }
     }
 
-    /// The lists above are long enough without repeating the package on every line.
+    /// The one list left that names types rather than packages is long enough without repeating
+    /// the package on every line.
     private static List<String> in(String packageName, String... simpleNames) {
         return Stream.of(simpleNames).map(simpleName -> packageName + "." + simpleName).toList();
     }
