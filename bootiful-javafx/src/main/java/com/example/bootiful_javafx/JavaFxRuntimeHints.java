@@ -15,218 +15,123 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-///
-/// This began as the `META-INF/native-image/org.openjfx/javafx/reachability-metadata.json` the
-/// native-image agent recorded (`mvn -Pagent spring-boot:run`), rewritten as a
-/// [RuntimeHintsRegistrar] so it compiles, so it can carry an explanation of *why* each family is
-/// in the list, and so it arrives by the same route as every other hint Spring's AOT processing
-/// contributes.
-///
-/// What it lists now is packages rather than classes. The agent records reflection down to the
-/// individual method, and one recording's worth of methods on one recording's worth of classes is
-/// exactly the thing that goes stale: a class JavaFX only ever finds by name is a class whose
-/// members we cannot predict, and a *package* JavaFX finds classes by name in is a package whose
-/// classes we cannot predict either. So the packages are named, [HintsUtils] finds what is in them
-/// - nested, anonymous and synthetic classes included, since those are class files sitting in the
-/// same directory - and every type it finds is registered for every [MemberCategory]. Asking for
-/// `values()` rather than naming the categories keeps that true the day Spring adds one; scanning
-/// rather than enumerating keeps it true the day OpenJFX adds a shader.
-///
-/// The cost is honest: this registers on the order of a couple of thousand types where the
-/// recording named five hundred, which the image pays for in size. The benefit is that a JavaFX
-/// upgrade cannot silently take a class out from under it.
-///
 class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 
-    /// Everything, asked for as `values()` rather than spelled out, so it stays everything the day
-    /// Spring adds a category. Minus the deprecated ones: each is either a synonym for a surviving
-    /// category, or - `PUBLIC_CLASSES`, `DECLARED_CLASSES` - an attribute GraalVM's metadata schema
-    /// has since dropped and now greets with a build warning.
-    private static final MemberCategory[] EVERYTHING = Stream.of(MemberCategory.values())
-            .filter(category -> !isDeprecated(category))
-            .toArray(MemberCategory[]::new);
+	@Override
+	public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+		var reflective = types(this.nativeCallbacks, this.prismShaders, this.effectPeers, this.publicApi, this.toolkit);
+		this.findClassesInPackages(classLoader, reflective)
+			.forEach(type -> hints.reflection().registerType(type, this.everything));
+		this.findClassesInPackages(classLoader, this.nativeCallbacks)
+			.forEach(type -> hints.jni().registerType(type, this.everything));
+		this.nativeCallbackTypes.forEach(type -> {
+			hints.reflection().registerTypeIfPresent(classLoader, type, this.everything);
+			hints.jni().registerTypeIfPresent(classLoader, type, this.everything);
+		});
+		this.arrays.forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, this.everything));
+		this.resources.forEach(hints.resources()::registerPattern);
+	}
 
-    /// Glass is the sliver of JavaFX that sits on the platform's own windowing toolkit, and the
-    /// traffic runs both ways: Cocoa delivers an event, and the native side reaches back into
-    /// Java through JNI, looking up the class, the field or the method by name. Those lookups are
-    /// invisible to native-image's static analysis, so every type in these packages is registered
-    /// for JNI as well as for reflection.
-    ///
-    /// Much of this is platform-specific - `com.sun.glass.ui.mac` only exists in the macOS
-    /// classifier of javafx-graphics - and on another platform the scan simply comes back empty.
-    private static final List<String> NATIVE_CALLBACKS = List.of(
-            "com.sun.glass.events",
-            "com.sun.glass.ui",
-            "com.sun.glass.ui.delegate",
-            "com.sun.glass.ui.headless",
-            "com.sun.glass.ui.mac",
-            "com.sun.glass.utils",
-            "com.sun.javafx.font.coretext");
+	private final MemberCategory[] everything = Stream.of(MemberCategory.values()) //
+		.filter(category -> {//
+			try {
+				return !MemberCategory.class.getField(category.name()) //
+					.isAnnotationPresent(Deprecated.class);
+			} //
+			catch (NoSuchFieldException noSuchField) {
+				throw new IllegalStateException(noSuchField);
+			}
+		}) //
+		.toArray(MemberCategory[]::new);
 
-    /// Prism builds a shader's class name out of the paint, the blend mode and the pipeline, then
-    /// asks for it by that name. No amount of static analysis follows a string concatenation into
-    /// a class, and no single run of the app touches more than a few, so the package goes in
-    /// wholesale rather than one recording's worth of it.
-    private static final List<String> PRISM_SHADERS = List.of(
-            "com.sun.prism.shader");
+	/*
+	 * Glass is the sliver of JavaFX that sits on the platform's own windowing toolkit,
+	 * and the traffic runs both ways. Coocoa delivers an event, and the native side
+	 * reaches back into Java through JNI, looking up the class, the field or the method
+	 * by name.
+	 */
+	private final List<String> nativeCallbacks = List.of("com.sun.glass.events", "com.sun.glass.ui",
+			"com.sun.glass.ui.delegate", "com.sun.glass.ui.headless", "com.sun.glass.ui.mac", "com.sun.glass.utils",
+			"com.sun.javafx.font.coretext");
 
-    /// The effects pipeline resolves a peer per renderer - hand-written Java, SSE intrinsics,
-    /// Prism shaders, Metal - by name, for the same reason and with the same blind spot. Reduced
-    /// opacity on a disabled control is enough to pull one of these in, which is what the
-    /// `-Dsmoke.test` toggling in [StageInitializer] is there to exercise.
-    private static final List<String> EFFECT_PEERS = List.of(
-            "com.sun.scenario.effect.impl.es2",
-            "com.sun.scenario.effect.impl.hw.mtl",
-            "com.sun.scenario.effect.impl.prism",
-            "com.sun.scenario.effect.impl.prism.ps",
-            "com.sun.scenario.effect.impl.prism.sw",
-            "com.sun.scenario.effect.impl.sw.java",
-            "com.sun.scenario.effect.impl.sw.sse");
+	private final List<String> prismShaders = List.of("com.sun.prism.shader");
 
-    /// The CSS engine turns a selector into a class: `styles.css` naming `.greeting` sends it
-    /// looking for the Java type behind the styleable, and property lookups on the way to a
-    /// computed value go through reflection too. Which types a stylesheet will name is a question
-    /// about the stylesheet, not about the app, so the public API packages go in whole.
-    private static final List<String> PUBLIC_API = List.of(
-            "javafx.animation",
-            "javafx.application",
-            "javafx.collections",
-            "javafx.css",
-            "javafx.event",
-            "javafx.geometry",
-            "javafx.scene",
-            "javafx.scene.control",
-            "javafx.scene.effect",
-            "javafx.scene.image",
-            "javafx.scene.layout",
-            "javafx.scene.paint",
-            "javafx.scene.shape",
-            "javafx.scene.text",
-            "javafx.scene.transform",
-            "javafx.stage");
+	private final List<String> effectPeers = List.of("com.sun.scenario.effect.impl.es2",
+			"com.sun.scenario.effect.impl.hw.mtl", "com.sun.scenario.effect.impl.prism",
+			"com.sun.scenario.effect.impl.prism.ps", "com.sun.scenario.effect.impl.prism.sw",
+			"com.sun.scenario.effect.impl.sw.java", "com.sun.scenario.effect.impl.sw.sse");
 
-    /// The rest of the toolkit's own by-name plumbing: the pipeline and font factory it selects
-    /// from a system property, the logger it picks depending on whether JFR is around.
-    private static final List<String> TOOLKIT = List.of(
-            "com.sun.javafx",
-            "com.sun.javafx.logging",
-            "com.sun.javafx.logging.jfr",
-            "com.sun.javafx.scene.control.skin",
-            "com.sun.javafx.tk.quantum",
-            "com.sun.prism",
-            "com.sun.prism.es2");
+	private final List<String> publicApi = List.of("javafx.animation", "javafx.application", "javafx.collections",
+			"javafx.css", "javafx.event", "javafx.geometry", "javafx.scene", "javafx.scene.control",
+			"javafx.scene.effect", "javafx.scene.image", "javafx.scene.layout", "javafx.scene.paint",
+			"javafx.scene.shape", "javafx.scene.text", "javafx.scene.transform", "javafx.stage");
 
-    /// The last names spelled out one by one, for the two reasons a package will not do.
-    ///
-    /// The JDK's own types - the `java.lang.Boolean` Glass boxes a result into on its way back up
-    /// through JNI, the `sun.management.VMManagementImpl` the toolkit asks the VM about - live in
-    /// the runtime image rather than on the classpath, so there is no class file for a scan to
-    /// find. And `Color`, `LineTo` and `MoveTo` are the only members of packages already scanned
-    /// for reflection that the native side also constructs, so naming them here keeps the JNI
-    /// surface to what actually crosses that boundary rather than two more whole packages.
-    /// Registration is conditional: none of these is guaranteed to be present.
-    private static final List<String> NATIVE_CALLBACK_TYPES = types(
-            in("java.lang", Boolean.class.getName(), Class.class.getName(), Integer.class.getName(),
-                    Long.class.getName(), Object.class.getName(), Runnable.class.getName(), String.class.getName()),
-            in("java.util", Collections.class.getName(), HashMap.class.getName(), List.class.getName(), Map.class.getName()),
-            in("javafx.scene.paint", javafx.scene.paint.Color.class.getName()),
-            in("javafx.scene.shape", javafx.scene.shape.LineTo.class.getName(),
-                    javafx.scene.shape.MoveTo.class.getName()),
-            in("sun.management", "VMManagementImpl"));
+	/*
+	 * The rest of the toolkit's own by-name plumbing: the pipeline and font factory it
+	 * selects from a system property, the logger it picks depending on whether JFR is
+	 * around.
+	 */
+	private final List<String> toolkit = List.of("com.sun.javafx", "com.sun.javafx.logging",
+			"com.sun.javafx.logging.jfr", "com.sun.javafx.scene.control.skin", "com.sun.javafx.tk.quantum",
+			"com.sun.prism", "com.sun.prism.es2");
 
-    /// An array type has no class file of its own, so no scan will ever turn one up.
-    private static final List<String> ARRAYS = types(
-            in("com.sun.glass.ui", "Screen[]"),
-            in("javafx.scene.paint", "Color[]"));
+	/*
+	 * these are types used by JNI. Some of them are the same as in the reflection hints.
+	 */
+	private final List<String> nativeCallbackTypes = types(
+			classSet(Runnable.class, Boolean.class, Class.class, Integer.class, Double.class, Float.class, Byte.class,
+					Character.class, Long.class, Object.class, String.class),
+			classSet(Collections.class, HashMap.class, List.class, Map.class), classSet(javafx.scene.paint.Color.class),
+			classSet(javafx.scene.shape.LineTo.class, javafx.scene.shape.MoveTo.class),
+			List.of("sun.management.VMManagementImpl"));
 
-    /// Resources JavaFX loads off the classpath: the native libraries it unpacks and dlopen()s,
-    /// the Modena and Caspian stylesheets, the shader programs, and the control skins'
-    /// localized strings. Plus this application's own `styles.css`.
-    private static final List<String> RESOURCES = List.of(
-            "*.dylib",
-            "com/sun/glass/utils/NativeLibLoader.class",
-            "com/sun/javafx/scene/control/skin/modena/**",
-            "com/sun/javafx/scene/control/skin/caspian/**",
-            "com/sun/javafx/scene/control/skin/resources/*.properties",
-            "com/sun/javafx/tk/quantum/*.properties",
-            "com/sun/prism/es2/glsl/**",
-            "com/sun/prism/mtl/msl/**",
-            "com/sun/scenario/effect/impl/es2/glsl/**",
-            "styles.css"
-    );
+	/* `getCanonicalName`, not `getName`: for an array */
+	private final List<String> arrays = List.of(com.sun.glass.ui.Screen[].class.getCanonicalName(),
+			javafx.scene.paint.Color[].class.getCanonicalName());
 
-    /// findClassesOverPackage over several packages at once, sharing one resolver and one
-    /// metadata cache across the lot. A package that nothing on the classpath contributes to - a
-    /// platform-specific one such as `com.sun.glass.ui.mac` on Linux, say - contributes nothing
-    /// rather than failing.
-    static Set<TypeReference> findClassesInPackages(ClassLoader classLoader, Collection<String> packageNames) {
-        var resolver = new PathMatchingResourcePatternResolver(classLoader);
-        var metadataReaderFactory = new CachingMetadataReaderFactory(resolver);
-        var classNames = new TreeSet<String>();
-        for (var packageName : packageNames) {
-            var pattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX
-                    + ClassUtils.convertClassNameToResourcePath(packageName) + "/*.class";
-            try {
-                for (var resource : resolver.getResources(pattern)) {
-                    if (!resource.isReadable() || isSynthetic(resource.getFilename())) {
-                        continue;
-                    }
-                    var metadata = metadataReaderFactory.getMetadataReader(resource).getClassMetadata();
-                    classNames.add(metadata.getClassName());
-                }
-            }// 
-            catch (IOException ioException) {
-                throw new UncheckedIOException("could not scan [" + packageName + "]", ioException);
-            }
-        }
-        return classNames//
-                .stream() // 
-                .map(TypeReference::of) //
-                .collect(Collectors.toUnmodifiableSet());
-    }
+	private final List<String> resources = List.of("*.dylib", "com/sun/glass/utils/NativeLibLoader.class",
+			"com/sun/javafx/scene/control/skin/modena/**", "com/sun/javafx/scene/control/skin/caspian/**",
+			"com/sun/javafx/scene/control/skin/resources/*.properties", "com/sun/javafx/tk/quantum/*.properties",
+			"com/sun/prism/es2/glsl/**", "com/sun/prism/mtl/msl/**", "com/sun/scenario/effect/impl/es2/glsl/**",
+			"styles.css");
 
-    private static boolean isDeprecated(MemberCategory category) {
-        try {
-            return MemberCategory.class.getField(category.name()).isAnnotationPresent(Deprecated.class);
-        } catch (NoSuchFieldException noSuchField) {
-            throw new IllegalStateException(noSuchField);
-        }
-    }
+	private Set<String> classSet(Class<?>... classes) {
+		return Stream.of(classes).map(Class::getName).collect(Collectors.toUnmodifiableSet());
+	}
 
-    /// The one list left that names types rather than packages is long enough without repeating
-    /// the package on every line.
-    private static List<String> in(String packageName, String... simpleNames) {
-        return Stream.of(simpleNames).map(simpleName -> packageName + "." + simpleName).toList();
-    }
+	private Set<TypeReference> findClassesInPackages(ClassLoader classLoader, Collection<String> packageNames) {
+		var resolver = new PathMatchingResourcePatternResolver(classLoader);
+		var metadataReaderFactory = new CachingMetadataReaderFactory(resolver);
+		var classNames = new TreeSet<String>();
+		for (var packageName : packageNames) {
+			var pattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX
+					+ ClassUtils.convertClassNameToResourcePath(packageName) + "/*.class";
+			try {
+				for (var resource : resolver.getResources(pattern)) {
+					if (!resource.isReadable() || isSynthetic(resource.getFilename())) {
+						continue;
+					}
+					var metadata = metadataReaderFactory.getMetadataReader(resource).getClassMetadata();
+					classNames.add(metadata.getClassName());
+				}
+			} //
+			catch (IOException ioException) {
+				throw new UncheckedIOException("could not scan [" + packageName + "]", ioException);
+			}
+		}
+		return classNames//
+			.stream() //
+			.map(TypeReference::of) //
+			.collect(Collectors.toUnmodifiableSet());
+	}
 
-    @SafeVarargs
-    private static List<String> types(List<String>... groups) {
-        return Stream.of(groups).flatMap(List::stream).toList();
-    }
+	@SafeVarargs
+	private List<String> types(Collection<String>... groups) {
+		return Stream.of(groups).flatMap(Collection::stream).toList();
+	}
 
-    /// `package-info` and `module-info` are class files that do not describe a class, and their
-    /// hyphenated names are not valid Java identifiers - [TypeReference#of(String)] rejects them.
-    private static boolean isSynthetic(String filename) {
-        return filename == null || filename.startsWith("package-info") || filename.startsWith("module-info");
-    }
-
-    @Override
-    public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-        // everything wants reflection, the JNI-reachable packages included - JNI registration is
-        // on top of that, not instead of it
-        var reflective = types(NATIVE_CALLBACKS, PRISM_SHADERS, EFFECT_PEERS, PUBLIC_API, TOOLKIT);
-        findClassesInPackages(classLoader, reflective)
-                .forEach(type -> hints.reflection().registerType(type, EVERYTHING));
-        findClassesInPackages(classLoader, NATIVE_CALLBACKS)
-                .forEach(type -> hints.jni().registerType(type, EVERYTHING));
-        NATIVE_CALLBACK_TYPES.forEach(type -> {
-            hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING);
-            hints.jni().registerTypeIfPresent(classLoader, type, EVERYTHING);
-        });
-
-        ARRAYS.forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING));
-
-        RESOURCES.forEach(hints.resources()::registerPattern);
-    }
+	private boolean isSynthetic(String filename) {
+		return filename == null || filename.startsWith("package-info") || filename.startsWith("module-info");
+	}
 
 }
