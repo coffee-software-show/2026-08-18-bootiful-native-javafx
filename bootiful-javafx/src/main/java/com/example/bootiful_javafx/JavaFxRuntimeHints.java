@@ -19,8 +19,7 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 
 	@Override
 	public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-		var reflective = types(classSet(Runnable.class), this.nativeCallbacks, this.prismShaders, this.effectPeers,
-				this.publicApi, this.toolkit);
+		var reflective = types(this.nativeCallbacks, this.prismShaders, this.effectPeers, this.publicApi, this.toolkit);
 		this.findClassesInPackages(classLoader, reflective)
 			.forEach(type -> hints.reflection().registerType(type, this.everything));
 		this.findClassesInPackages(classLoader, this.nativeCallbacks)
@@ -67,9 +66,11 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 			"javafx.scene.effect", "javafx.scene.image", "javafx.scene.layout", "javafx.scene.paint",
 			"javafx.scene.shape", "javafx.scene.text", "javafx.scene.transform", "javafx.stage");
 
-	/// The rest of the toolkit's own by-name plumbing: the pipeline and font factory it
-	/// selects
-	/// from a system property, the logger it picks depending on whether JFR is around.
+	/*
+	 * The rest of the toolkit's own by-name plumbing: the pipeline and font factory it
+	 * selects from a system property, the logger it picks depending on whether JFR is
+	 * around.
+	 */
 	private final List<String> toolkit = List.of("com.sun.javafx", "com.sun.javafx.logging",
 			"com.sun.javafx.logging.jfr", "com.sun.javafx.scene.control.skin", "com.sun.javafx.tk.quantum",
 			"com.sun.prism", "com.sun.prism.es2");
@@ -77,16 +78,16 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 	/*
 	 * these are types used by JNI. Some of them are the same as in the reflection hints.
 	 */
-
 	private final List<String> nativeCallbackTypes = types(
 			classSet(Runnable.class, Boolean.class, Class.class, Integer.class, Double.class, Float.class, Byte.class,
-					Character.class, Long.class, Object.class, Runnable.class, String.class),
+					Character.class, Long.class, Object.class, String.class),
 			classSet(Collections.class, HashMap.class, List.class, Map.class), classSet(javafx.scene.paint.Color.class),
 			classSet(javafx.scene.shape.LineTo.class, javafx.scene.shape.MoveTo.class),
 			List.of("sun.management.VMManagementImpl"));
 
-	private final List<String> arrays = List.of(com.sun.glass.ui.Screen[].class.getName(),
-			javafx.scene.paint.Color[].class.getName());
+	/* `getCanonicalName`, not `getName`: for an array */ 
+	private final List<String> arrays = List.of(com.sun.glass.ui.Screen[].class.getCanonicalName(),
+			javafx.scene.paint.Color[].class.getCanonicalName());
 
 	private final List<String> resources = List.of("*.dylib", "com/sun/glass/utils/NativeLibLoader.class",
 			"com/sun/javafx/scene/control/skin/modena/**", "com/sun/javafx/scene/control/skin/caspian/**",
@@ -95,7 +96,7 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 			"styles.css");
 
 	private Set<String> classSet(Class<?>... classes) {
-		return Set.of(Stream.of(classes).map(Class::getName).toArray(String[]::new));
+		return Stream.of(classes).map(Class::getName).collect(Collectors.toUnmodifiableSet());
 	}
 
 	private Set<TypeReference> findClassesInPackages(ClassLoader classLoader, Collection<String> packageNames) {
