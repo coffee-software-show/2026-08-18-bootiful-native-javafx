@@ -3,8 +3,16 @@ package com.example.bootiful_javafx;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
+import org.springframework.aot.hint.TypeReference;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
+import org.springframework.util.ClassUtils;
 
-import java.util.List;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 ///
@@ -120,9 +128,10 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
     private static final List<String> NATIVE_CALLBACK_TYPES = types(
             in("java.lang", Boolean.class.getName(), Class.class.getName(), Integer.class.getName(),
                     Long.class.getName(), Object.class.getName(), Runnable.class.getName(), String.class.getName()),
-            in("java.util", "Collections", "HashMap", "List", "Map"),
-            in("javafx.scene.paint", "Color"),
-            in("javafx.scene.shape", "LineTo", "MoveTo"),
+            in("java.util", Collections.class.getName(), HashMap.class.getName(), List.class.getName(), Map.class.getName()),
+            in("javafx.scene.paint", javafx.scene.paint.Color.class.getName()),
+            in("javafx.scene.shape", javafx.scene.shape.LineTo.class.getName(),
+                    javafx.scene.shape.MoveTo.class.getName()),
             in("sun.management", "VMManagementImpl"));
 
     /// An array type has no class file of its own, so no scan will ever turn one up.
@@ -146,26 +155,34 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
             "styles.css"
     );
 
-    @Override
-    public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
-        
-        // everything wants reflection, the JNI-reachable packages included - JNI registration is
-        // on top of that, not instead of it
-        var reflective = types(NATIVE_CALLBACKS, PRISM_SHADERS, EFFECT_PEERS, PUBLIC_API, TOOLKIT);
-        HintsUtils.findClassesInPackages(classLoader, reflective)
-                .forEach(type -> hints.reflection().registerType(type, EVERYTHING));
-
-        HintsUtils.findClassesInPackages(classLoader, NATIVE_CALLBACKS)
-                .forEach(type -> hints.jni().registerType(type, EVERYTHING));
-
-        NATIVE_CALLBACK_TYPES.forEach(type -> {
-            hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING);
-            hints.jni().registerTypeIfPresent(classLoader, type, EVERYTHING);
-        });
-
-        ARRAYS.forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING));
-
-        RESOURCES.forEach(hints.resources()::registerPattern);
+    /// findClassesOverPackage over several packages at once, sharing one resolver and one
+    /// metadata cache across the lot. A package that nothing on the classpath contributes to - a
+    /// platform-specific one such as `com.sun.glass.ui.mac` on Linux, say - contributes nothing
+    /// rather than failing.
+    static Set<TypeReference> findClassesInPackages(ClassLoader classLoader, Collection<String> packageNames) {
+        var resolver = new PathMatchingResourcePatternResolver(classLoader);
+        var metadataReaderFactory = new CachingMetadataReaderFactory(resolver);
+        var classNames = new TreeSet<String>();
+        for (var packageName : packageNames) {
+            var pattern = ResourcePatternResolver.CLASSPATH_ALL_URL_PREFIX
+                    + ClassUtils.convertClassNameToResourcePath(packageName) + "/*.class";
+            try {
+                for (var resource : resolver.getResources(pattern)) {
+                    if (!resource.isReadable() || isSynthetic(resource.getFilename())) {
+                        continue;
+                    }
+                    var metadata = metadataReaderFactory.getMetadataReader(resource).getClassMetadata();
+                    classNames.add(metadata.getClassName());
+                }
+            }// 
+            catch (IOException ioException) {
+                throw new UncheckedIOException("could not scan [" + packageName + "]", ioException);
+            }
+        }
+        return classNames//
+                .stream() // 
+                .map(TypeReference::of) //
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private static boolean isDeprecated(MemberCategory category) {
@@ -185,6 +202,31 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
     @SafeVarargs
     private static List<String> types(List<String>... groups) {
         return Stream.of(groups).flatMap(List::stream).toList();
+    }
+
+    /// `package-info` and `module-info` are class files that do not describe a class, and their
+    /// hyphenated names are not valid Java identifiers - [TypeReference#of(String)] rejects them.
+    private static boolean isSynthetic(String filename) {
+        return filename == null || filename.startsWith("package-info") || filename.startsWith("module-info");
+    }
+
+    @Override
+    public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+        // everything wants reflection, the JNI-reachable packages included - JNI registration is
+        // on top of that, not instead of it
+        var reflective = types(NATIVE_CALLBACKS, PRISM_SHADERS, EFFECT_PEERS, PUBLIC_API, TOOLKIT);
+        findClassesInPackages(classLoader, reflective)
+                .forEach(type -> hints.reflection().registerType(type, EVERYTHING));
+        findClassesInPackages(classLoader, NATIVE_CALLBACKS)
+                .forEach(type -> hints.jni().registerType(type, EVERYTHING));
+        NATIVE_CALLBACK_TYPES.forEach(type -> {
+            hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING);
+            hints.jni().registerTypeIfPresent(classLoader, type, EVERYTHING);
+        });
+
+        ARRAYS.forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, EVERYTHING));
+
+        RESOURCES.forEach(hints.resources()::registerPattern);
     }
 
 }

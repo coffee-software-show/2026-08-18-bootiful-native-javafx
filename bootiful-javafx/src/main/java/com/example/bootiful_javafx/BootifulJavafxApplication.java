@@ -90,15 +90,12 @@ public class BootifulJavafxApplication {
         return manager;
     }
 
-    /// A `RestClient` that puts `Authorization: Bearer ...` on every request for which a
-    /// registration id was named - see [#clientRegistrationId(String)] at the call site.
     @Bean
     RestClient restClient(RestClient.Builder builder, OAuth2AuthorizedClientManager authorizedClientManager) {
         return builder
                 .requestInterceptor(new OAuth2ClientHttpRequestInterceptor(authorizedClientManager))
                 .build();
     }
-
 }
 
 class StageReadyEvent extends ApplicationEvent {
