@@ -148,7 +148,7 @@ class SystemBrowserOAuth2Login {
 		return builder.build();
 	}
 
-	private static OAuth2AuthorizationResponse authorizationResponse(OAuth2AuthorizationRequest request,
+	private OAuth2AuthorizationResponse authorizationResponse(OAuth2AuthorizationRequest request,
 			Map<String, String> parameters) {
 		var error = parameters.get(OAuth2ParameterNames.ERROR);
 		if (error != null) {
@@ -191,21 +191,12 @@ class SystemBrowserOAuth2Login {
 	private OidcIdToken idToken(ClientRegistration registration, OAuth2AccessTokenResponse tokens) {
 		var value = (String) tokens.getAdditionalParameters().get(OidcParameterNames.ID_TOKEN);
 		Assert.hasText(value, "the token response carried no id_token; is 'openid' among the scopes?");
-		// signature (against the provider's JWK Set), issuer, audience, expiry - all of
-		// it.
 		var jwt = this.idTokens.createDecoder(registration).decode(value);
 		return new OidcIdToken(jwt.getTokenValue(), jwt.getIssuedAt(), jwt.getExpiresAt(), jwt.getClaims());
 	}
 
 }
 
-/*
- * The redirect target of the authorization code flow, served by the app's own embedded
- * Tomcat: the browser arrives here with the authorization code, and this is the page the
- * user is left looking at. `/login/oauth2/code/{registrationId}` is Spring Security's own
- * convention for the redirect endpoint, and it is what the client registration's
- * `redirect-uri` names - the port it names is `server.port`.
- */
 @Controller
 class AuthorizationCodeRedirectController {
 
@@ -235,17 +226,11 @@ record UserSignedInEvent(OAuth2AuthenticationToken authentication) {
 	}
 }
 
-/*
- * Plugs the interactive sign-in into the OAuth2AuthorizedClientManager, as the last
- * resort behind the refresh token grant
- */
 @Component
-@SuppressWarnings("ResultOfMethodCallIgnored")
 class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedClientProvider {
 
 	private static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
 
-	// used to hand errand back from browser
 	private final BlockingQueue<UserSignedInEvent> signIns = new ArrayBlockingQueue<>(1);
 
 	private final SystemBrowserOAuth2Login login;
@@ -313,11 +298,16 @@ class SystemBrowser implements AuthorizationBrowser {
 	public void open(String authorizationRequestUri) {
 		try {
 			var os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-			var command = os.contains("mac") ? List.of("open", authorizationRequestUri)
-					: os.contains("win") ? List.of("rundll32", "url.dll,FileProtocolHandler", authorizationRequestUri)
-							: List.of("xdg-open", authorizationRequestUri);
+			var mapping = Map.of(//
+					"mac", List.of("open", authorizationRequestUri), //
+					"win", List.of("rundll32", "url.dll,FileProtocolHandler", authorizationRequestUri)//
+			);
+			var command = List.of("xdg-open", authorizationRequestUri);
+			for (var osKey : mapping.keySet())
+				if (os.contains(osKey))
+					command = mapping.get(osKey);
 			new ProcessBuilder(command).start();
-		}
+		} //
 		catch (IOException e) {
 			throw new RuntimeException(e);
 		}

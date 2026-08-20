@@ -45,12 +45,6 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 		}) //
 		.toArray(MemberCategory[]::new);
 
-	/*
-	 * Glass is the sliver of JavaFX that sits on the platform's own windowing toolkit,
-	 * and the traffic runs both ways. Coocoa delivers an event, and the native side
-	 * reaches back into Java through JNI, looking up the class, the field or the method
-	 * by name.
-	 */
 	private final List<String> nativeCallbacks = List.of("com.sun.glass.events", "com.sun.glass.ui",
 			"com.sun.glass.ui.delegate", "com.sun.glass.ui.headless", "com.sun.glass.ui.mac", "com.sun.glass.utils",
 			"com.sun.javafx.font.coretext");

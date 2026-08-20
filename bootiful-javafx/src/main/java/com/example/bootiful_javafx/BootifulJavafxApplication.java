@@ -58,46 +58,12 @@ import static org.springframework.security.oauth2.client.web.client.RequestAttri
 public class BootifulJavafxApplication {
 
 	public static void main(String[] args) {
-		// A desktop app has one user, not one user per thread. MODE_GLOBAL means the
-		// principal
-		// established by the sign-in is the principal every other thread - the JavaFX
-		// application
-		// thread, the RestClient interceptor - sees.
 		SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_GLOBAL);
-
-		/*
-		 * The Spring context is started here, on the main thread, on purpose:
-		 *
-		 * 1. Spring Boot's AOT processor calls this main() at build time and abandons the
-		 * run as soon as the context has been prepared, so we never reach the UI and no
-		 * window pops up during the build. 2. SpringApplication deduces the
-		 * "main application class" by walking the stack for a main() method, and the
-		 * AOT-generated initializer is looked up by that class name. A JavaFX launcher
-		 * thread has no main() on its stack, so booting the context from there would
-		 * silently fall back to the non-AOT path.
-		 */
-
 		var ac = new SpringApplicationBuilder().sources(BootifulJavafxApplication.class).headless(false).run(args);
-		/*
-		 * Platform.startup(), NOT Application.launch(). On macOS the AppKit event loop
-		 * has to run on the process' first thread. The java launcher arranges that by
-		 * moving main() onto a secondary thread and parking thread 0 in a CoreFoundation
-		 * run loop; a GraalVM native image has no such launcher, so main() *is* thread 0.
-		 * Application.launch() would hand toolkit startup to a "JavaFX-Launcher" thread,
-		 * which then waits forever for a main thread that is itself blocked inside
-		 * launch() - a silent deadlock with no window and no stack trace. Calling
-		 * Platform.startup() here lets Glass see it is already on the main thread and run
-		 * the event loop in place. This is also correct on the JVM.
-		 */
 		Platform.startup(() -> ac.publishEvent(new StageReadyEvent(new Stage())));
-
 	}
 
-	/// Non-web apps get no `OAuth2AuthorizedClientManager` from Spring Boot, so here is
-	/// one. It
-	/// keeps the access token alive out of the refresh token where there is one, and
-	/// falls back to
-	/// asking the user again in the browser where there isn't.
+	// Non-web apps get no `OAuth2AuthorizedClientManager` from Spring Boot
 	@Bean
 	OAuth2AuthorizedClientManager authorizedClientManager(ClientRegistrationRepository registrations,
 			OAuth2AuthorizedClientService authorizedClients, SystemBrowserOAuth2AuthorizedClientProvider browser) {
@@ -137,28 +103,22 @@ class StageInitializer {
 
 	private final String api;
 
-	private final String smokeTest;
-
 	private final CountDownLatch signedIn = new CountDownLatch(1);
 
-	private Label greeting;
-
-	private Label status;
+	private Label greeting, status;
 
 	private TextArea output;
 
-	private Button signIn;
+	private Button signIn, call;
 
-	private Button call;
-
-	StageInitializer(SystemBrowserOAuth2Login login, RestClient http,
-			@Value("${bootiful.oauth2.registration-id}") String registrationId,
-			@Value("${bootiful.api-uri}") String api, @Value("${smoke.test:}") String smokeTest) {
+	StageInitializer(SystemBrowserOAuth2Login login, //
+			RestClient http, //
+			@Value("${bootiful.oauth2.registration-id}") String registrationId, //
+			@Value("${bootiful.api-uri}") String api) {
 		this.login = login;
 		this.http = http;
 		this.registrationId = registrationId;
 		this.api = api;
-		this.smokeTest = smokeTest;
 	}
 
 	@EventListener
