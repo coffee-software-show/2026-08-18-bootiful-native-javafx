@@ -29,7 +29,8 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 			hints.jni().registerTypeIfPresent(classLoader, type, this.everything);
 		});
 		this.arrays.forEach(type -> hints.reflection().registerTypeIfPresent(classLoader, type, this.everything));
-		this.resources.forEach(hints.resources()::registerPattern);
+		for (var listOfResources : List.of(this.javafxResources, this.appResources))
+			listOfResources.forEach(hints.resources()::registerPattern);
 	}
 
 	private final MemberCategory[] everything = Stream.of(MemberCategory.values()) //
@@ -89,14 +90,12 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 	private final List<String> arrays = List.of(com.sun.glass.ui.Screen[].class.getCanonicalName(),
 			javafx.scene.paint.Color[].class.getCanonicalName());
 
-	private final List<String> resources = List.of("*.dylib", "com/sun/glass/utils/NativeLibLoader.class",
+	private final List<String> appResources = List.of("styles.css", "templates/*");
+
+	private final List<String> javafxResources = List.of("*.dylib", "com/sun/glass/utils/NativeLibLoader.class",
 			"com/sun/javafx/scene/control/skin/modena/**", "com/sun/javafx/scene/control/skin/caspian/**",
 			"com/sun/javafx/scene/control/skin/resources/*.properties", "com/sun/javafx/tk/quantum/*.properties",
-			"com/sun/prism/es2/glsl/**", "com/sun/prism/mtl/msl/**", "com/sun/scenario/effect/impl/es2/glsl/**",
-			// the app's own two: the stylesheet the scene loads, and the Mustache
-			// template the sign-in page is rendered from. Neither is a class, so
-			// nothing in the AOT pass would otherwise notice them.
-			"styles.css", "templates/*");
+			"com/sun/prism/es2/glsl/**", "com/sun/prism/mtl/msl/**", "com/sun/scenario/effect/impl/es2/glsl/**");
 
 	private Set<String> classSet(Class<?>... classes) {
 		return Stream.of(classes).map(Class::getName).collect(Collectors.toUnmodifiableSet());

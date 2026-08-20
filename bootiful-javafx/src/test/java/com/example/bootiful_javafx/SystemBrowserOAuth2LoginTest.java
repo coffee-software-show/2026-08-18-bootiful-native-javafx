@@ -35,7 +35,8 @@ class SystemBrowserOAuth2LoginTest {
 	private final SystemBrowserOAuth2Login login = new SystemBrowserOAuth2Login(
 			new InMemoryClientRegistrationRepository(REGISTRATION),
 			new InMemoryOAuth2AuthorizedClientService(new InMemoryClientRegistrationRepository(REGISTRATION)),
-			this.opened::set, _ -> {});
+			this.opened::set, _ -> {
+			});
 
 	@Test
 	void asksForACodeAndProtectsItWithPkce() throws Exception {
