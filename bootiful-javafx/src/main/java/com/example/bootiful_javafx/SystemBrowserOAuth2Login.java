@@ -1,18 +1,12 @@
 package com.example.bootiful_javafx;
 
-import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
 import org.springframework.security.crypto.keygen.StringKeyGenerator;
-import org.springframework.security.oauth2.client.OAuth2AuthorizationContext;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
@@ -23,31 +17,15 @@ import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.*;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
-import org.springframework.ui.Model;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /* Signs a *desktop* user in with the OAuth 2.0 authorization code grant + PKCE, driving the
  machine's real browser instead of an embedded one.
@@ -95,9 +73,7 @@ class SystemBrowserOAuth2Login {
 		this.events = events;
 	}
 
-	/*
-	 * Opens the system browser and returns; the answer arrives at the redirect endpoint.
-	 */
+	// Opens the system browser and returns; the answer arrives at the redirect endpoint.
 	void start(String registrationId) {
 		var request = authorizationRequest(registration(registrationId));
 		// remembered before the URL is handed to the OS: the browser can be back with the
@@ -193,124 +169,6 @@ class SystemBrowserOAuth2Login {
 		Assert.hasText(value, "the token response carried no id_token; is 'openid' among the scopes?");
 		var jwt = this.idTokens.createDecoder(registration).decode(value);
 		return new OidcIdToken(jwt.getTokenValue(), jwt.getIssuedAt(), jwt.getExpiresAt(), jwt.getClaims());
-	}
-
-}
-
-@Controller
-class AuthorizationCodeRedirectController {
-
-	private final SystemBrowserOAuth2Login login;
-
-	AuthorizationCodeRedirectController(SystemBrowserOAuth2Login login) {
-		this.login = login;
-	}
-
-	@GetMapping("/login/oauth2/code/{registrationId}")
-	String signedIn(@PathVariable String registrationId, @RequestParam Map<String, String> parameters, Model model) {
-		model.addAttribute("name", this.login.finish(registrationId, parameters).name());
-		return "signed-in";
-	}
-
-}
-
-record UserSignedInEvent(OAuth2AuthenticationToken authentication) {
-
-	OidcUser user() {
-		return (OidcUser) authentication.getPrincipal();
-	}
-
-	String name() {
-		return StringUtils.hasText(user().getPreferredUsername())
-				? Objects.requireNonNull(user().getPreferredUsername()) : user().getName();
-	}
-}
-
-@Component
-class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedClientProvider {
-
-	private static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
-
-	private final BlockingQueue<UserSignedInEvent> signIns = new ArrayBlockingQueue<>(1);
-
-	private final SystemBrowserOAuth2Login login;
-
-	private final OAuth2AuthorizedClientService authorizedClients;
-
-	private final Duration timeout;
-
-	SystemBrowserOAuth2AuthorizedClientProvider(SystemBrowserOAuth2Login login,
-			OAuth2AuthorizedClientService authorizedClients,
-			@Value("${bootiful.oauth2.login-timeout:2m}") Duration timeout) {
-		this.login = login;
-		this.authorizedClients = authorizedClients;
-		this.timeout = timeout;
-	}
-
-	@EventListener
-	void on(UserSignedInEvent event) {
-		this.signIns.offer(event);
-	}
-
-	@Override
-	public OAuth2AuthorizedClient authorize(OAuth2AuthorizationContext context) {
-		var registration = context.getClientRegistration();
-		var current = context.getAuthorizedClient();
-		if (!AuthorizationGrantType.AUTHORIZATION_CODE.equals(registration.getAuthorizationGrantType())
-				|| (current != null && !expired(current.getAccessToken()))) {
-			return null;
-		}
-		try {
-			// whoever signed in before this call did not do it in answer to this call
-			this.signIns.clear();
-			this.login.start(registration.getRegistrationId());
-			var event = this.signIns.poll(this.timeout.toMillis(), TimeUnit.MILLISECONDS);
-			if (event == null) {
-				throw new OAuth2AuthorizationException(new OAuth2Error("browser_login_timed_out"));
-			}
-			return this.authorizedClients.loadAuthorizedClient(registration.getRegistrationId(),
-					event.authentication().getName());
-		} //
-		catch (InterruptedException ie) {
-			Thread.currentThread().interrupt();
-			throw new OAuth2AuthorizationException(new OAuth2Error("browser_login_interrupted"));
-		}
-	}
-
-	private static boolean expired(OAuth2AccessToken token) {
-		var expiresAt = token.getExpiresAt();
-		return expiresAt != null && Instant.now().isAfter(expiresAt.minus(CLOCK_SKEW));
-	}
-
-}
-
-@FunctionalInterface
-interface AuthorizationBrowser {
-
-	void open(String authorizationRequestUri);
-
-}
-
-@Component
-class SystemBrowser implements AuthorizationBrowser {
-
-	@Override
-	public void open(String authorizationRequestUri) {
-		try {
-			var os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-			var mapping = Map.of(//
-					"mac", List.of("open", authorizationRequestUri), //
-					"win", List.of("rundll32", "url.dll,FileProtocolHandler", authorizationRequestUri)//
-			);
-			var command = List.of("xdg-open", authorizationRequestUri);
-			for (var osKey : mapping.keySet())
-				if (os.contains(osKey))
-					command = mapping.get(osKey);
-			new ProcessBuilder(command).start();
-		} //
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		}
 	}
 
 }
