@@ -238,10 +238,7 @@ class UserSignedInEvent extends ApplicationEvent {
 		return (OidcUser) authentication().getPrincipal();
 	}
 
-	/*
-	 * What to call them: `preferred_username` if the provider sent one, the subject if
-	 * not.
-	 */
+
 	String name() {
 		return user().getPreferredUsername() != null ? user().getPreferredUsername() : user().getName();
 	}
