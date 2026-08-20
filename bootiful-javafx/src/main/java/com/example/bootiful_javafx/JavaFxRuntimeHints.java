@@ -93,7 +93,10 @@ class JavaFxRuntimeHints implements RuntimeHintsRegistrar {
 			"com/sun/javafx/scene/control/skin/modena/**", "com/sun/javafx/scene/control/skin/caspian/**",
 			"com/sun/javafx/scene/control/skin/resources/*.properties", "com/sun/javafx/tk/quantum/*.properties",
 			"com/sun/prism/es2/glsl/**", "com/sun/prism/mtl/msl/**", "com/sun/scenario/effect/impl/es2/glsl/**",
-			"styles.css");
+			// the app's own two: the stylesheet the scene loads, and the Mustache
+			// template the sign-in page is rendered from. Neither is a class, so
+			// nothing in the AOT pass would otherwise notice them.
+			"styles.css", "templates/*");
 
 	private Set<String> classSet(Class<?>... classes) {
 		return Stream.of(classes).map(Class::getName).collect(Collectors.toUnmodifiableSet());

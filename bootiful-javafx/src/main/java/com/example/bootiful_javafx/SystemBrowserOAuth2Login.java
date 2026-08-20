@@ -1,10 +1,11 @@
 package com.example.bootiful_javafx;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
 import org.springframework.security.crypto.keygen.StringKeyGenerator;
@@ -28,24 +29,31 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.*;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
+import org.springframework.ui.Model;
 import org.springframework.util.Assert;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.net.*;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /* Signs a *desktop* user in with the OAuth 2.0 authorization code grant + PKCE, driving the
  machine's real browser instead of an embedded one.
+
+ The flow leaves the process in the middle - the user is off typing a password on somebody else's
+ web page - so it is written as two halves: `start` opens the browser, and `finish` picks the code
+ up when the browser comes back to [AuthorizationCodeRedirectController]. Nothing waits in between;
+ the app hears about the result as a [UserSignedInEvent].
 */
 @Service
 class SystemBrowserOAuth2Login {
@@ -66,32 +74,61 @@ class SystemBrowserOAuth2Login {
 
 	private final AuthorizationBrowser browser;
 
-	private final Duration timeout;
+	private final ApplicationEventPublisher events;
+
+	/*
+	 * The sign-in that is in flight, if there is one. A desktop app has one user, with
+	 * one browser, in front of one window, so there is never more than one - and the
+	 * `code_verifier` PKCE will need at the end of the flow rides along in its
+	 * attributes.
+	 */
+	private volatile OAuth2AuthorizationRequest inFlight;
 
 	SystemBrowserOAuth2Login(ClientRegistrationRepository registrations,
 			OAuth2AuthorizedClientService authorizedClients, AuthorizationBrowser browser,
-			@Value("${bootiful.oauth2.login-timeout:2m}") Duration timeout) {
+			ApplicationEventPublisher events) {
 		this.registrations = registrations;
 		this.authorizedClients = authorizedClients;
 		this.browser = browser;
-		this.timeout = timeout;
+		this.events = events;
 	}
 
 	/*
-	 * Blocks until the user finishes (or abandons) the flow in their browser, so call
-	 * this off the JavaFX application thread.
+	 * Opens the system browser and returns; the answer arrives at the redirect endpoint.
 	 */
-	OAuth2AuthenticationToken login(String registrationId) throws IOException {
+	void start(String registrationId) throws IOException {
+		var request = authorizationRequest(registration(registrationId));
+		// remembered before the URL is handed to the OS: the browser can be back with the
+		// code before open() has returned.
+		this.inFlight = request;
+		log.info("opening the system browser to sign in with [{}]", registrationId);
+		this.browser.open(request.getAuthorizationRequestUri());
+	}
+
+	/*
+	 * The other half, one browser round trip later: check that this is the answer to the
+	 * question we asked, then trade the authorization code for tokens. Runs on the thread
+	 * serving the redirect.
+	 */
+	UserSignedInEvent finish(String registrationId, Map<String, String> parameters) {
+		var request = this.inFlight;
+		this.inFlight = null;
+		if (request == null) {
+			// a reloaded page, a bookmarked redirect, somebody replaying a URL: whatever
+			// this is, nobody in this app is waiting for it.
+			throw new OAuth2AuthorizationException(new OAuth2Error("no_sign_in_in_flight"));
+		}
+		var response = authorizationResponse(request, parameters);
+		var exchange = new OAuth2AuthorizationExchange(request, response);
+		var event = new UserSignedInEvent(exchange(registration(registrationId), exchange));
+		this.events.publishEvent(event);
+		return event;
+	}
+
+	private ClientRegistration registration(String registrationId) {
 		var registration = this.registrations.findByRegistrationId(registrationId);
 		Assert.notNull(registration, () -> "there is no client registration called [" + registrationId + "]");
-		var authorizationRequest = authorizationRequest(registration);
-		// bind the listener *before* handing the URL to the OS
-		try (var redirect = new LoopbackRedirectListener(URI.create(registration.getRedirectUri()))) {
-			log.info("opening the system browser to sign in with [{}]", registrationId);
-			this.browser.open(authorizationRequest.getAuthorizationRequestUri());
-			var response = authorizationResponse(authorizationRequest, redirect.await(this.timeout));
-			return exchange(registration, new OAuth2AuthorizationExchange(authorizationRequest, response));
-		}
+		return registration;
 	}
 
 	private static OAuth2AuthorizationRequest authorizationRequest(ClientRegistration registration) {
@@ -161,6 +198,57 @@ class SystemBrowserOAuth2Login {
 }
 
 /*
+ * The redirect target of the authorization code flow, served by the app's own embedded
+ * Tomcat: the browser arrives here with the authorization code, and this is the page the
+ * user is left looking at. `/login/oauth2/code/{registrationId}` is Spring Security's own
+ * convention for the redirect endpoint, and it is what the client registration's
+ * `redirect-uri` names - the port it names is `server.port`.
+ */
+@Controller
+class AuthorizationCodeRedirectController {
+
+	private final SystemBrowserOAuth2Login login;
+
+	AuthorizationCodeRedirectController(SystemBrowserOAuth2Login login) {
+		this.login = login;
+	}
+
+	@GetMapping("/login/oauth2/code/{registrationId}")
+	String signedIn(@PathVariable String registrationId, @RequestParam Map<String, String> parameters, Model model) {
+		model.addAttribute("name", this.login.finish(registrationId, parameters).name());
+		return "signed-in";
+	}
+
+}
+
+/*
+ * The sign-in worked. This is what the window - and anything else that cares - waits for.
+ */
+class UserSignedInEvent extends ApplicationEvent {
+
+	UserSignedInEvent(OAuth2AuthenticationToken authentication) {
+		super(authentication);
+	}
+
+	OAuth2AuthenticationToken authentication() {
+		return (OAuth2AuthenticationToken) getSource();
+	}
+
+	OidcUser user() {
+		return (OidcUser) authentication().getPrincipal();
+	}
+
+	/*
+	 * What to call them: `preferred_username` if the provider sent one, the subject if
+	 * not.
+	 */
+	String name() {
+		return user().getPreferredUsername() != null ? user().getPreferredUsername() : user().getName();
+	}
+
+}
+
+/*
  * Plugs the interactive sign-in into the
  * [org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager], as the last
  * resort behind the refresh token grant: when there is no access token, or the one we
@@ -170,18 +258,37 @@ class SystemBrowserOAuth2Login {
  * will not issue a refresh token to a *public* client, because there is nowhere safe on a
  * user's laptop to keep one. For this pairing the browser is the renewal mechanism.
  */
+@Component
 class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedClientProvider {
 
 	private static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
+
+	/*
+	 * The one place where an errand in a browser has to look like a method call:
+	 * OAuth2AuthorizedClientManager hands clients back by return value, so authorize()
+	 * has to stand there until the user is done. A queue of one is enough - there is only
+	 * ever one sign-in - and it means a browser that beats us back to this line still
+	 * gets heard.
+	 */
+	private final BlockingQueue<UserSignedInEvent> signIns = new ArrayBlockingQueue<>(1);
 
 	private final SystemBrowserOAuth2Login login;
 
 	private final OAuth2AuthorizedClientService authorizedClients;
 
+	private final Duration timeout;
+
 	SystemBrowserOAuth2AuthorizedClientProvider(SystemBrowserOAuth2Login login,
-			OAuth2AuthorizedClientService authorizedClients) {
+			OAuth2AuthorizedClientService authorizedClients,
+			@Value("${bootiful.oauth2.login-timeout:2m}") Duration timeout) {
 		this.login = login;
 		this.authorizedClients = authorizedClients;
+		this.timeout = timeout;
+	}
+
+	@EventListener
+	void on(UserSignedInEvent event) {
+		this.signIns.offer(event);
 	}
 
 	@Override
@@ -193,129 +300,29 @@ class SystemBrowserOAuth2AuthorizedClientProvider implements OAuth2AuthorizedCli
 			return null;
 		}
 		try {
-			var authentication = this.login.login(registration.getRegistrationId());
+			// whoever signed in before this call did not do it in answer to this call
+			this.signIns.clear();
+			this.login.start(registration.getRegistrationId());
+			var event = this.signIns.poll(this.timeout.toMillis(), TimeUnit.MILLISECONDS);
+			if (event == null) {
+				throw new OAuth2AuthorizationException(new OAuth2Error("browser_login_timed_out"));
+			}
 			return this.authorizedClients.loadAuthorizedClient(registration.getRegistrationId(),
-					authentication.getName());
+					event.authentication().getName());
 		}
 		catch (IOException ioe) {
 			throw new OAuth2AuthorizationException(new OAuth2Error("browser_login_failed", ioe.getMessage(), null),
 					ioe);
+		}
+		catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			throw new OAuth2AuthorizationException(new OAuth2Error("browser_login_interrupted"));
 		}
 	}
 
 	private static boolean expired(OAuth2AccessToken token) {
 		var expiresAt = token.getExpiresAt();
 		return expiresAt != null && Instant.now().isAfter(expiresAt.minus(CLOCK_SKEW));
-	}
-
-}
-
-/*
- * The redirect target of the authorization code flow: an HTTP server on the loopback
- * interface that lives exactly as long as one sign-in.
- */
-class LoopbackRedirectListener implements AutoCloseable {
-
-	private static final Logger log = LoggerFactory.getLogger(LoopbackRedirectListener.class);
-
-	private static final String PAGE = """
-			<!doctype html>
-			<html lang="en">
-			<head><meta charset="utf-8"><title>Signed in</title></head>
-			<body style="font-family: system-ui, sans-serif; text-align: center; padding-top: 15vh">
-			<h1>You're signed in.</h1>
-			<p>You can close this window and go back to the app.</p>
-			</body>
-			</html>
-			""";
-
-	private final HttpServer server;
-
-	private final String path;
-
-	private final CompletableFuture<Map<String, String>> response = new CompletableFuture<>();
-
-	LoopbackRedirectListener(URI redirectUri) throws IOException {
-		Assert.isTrue(redirectUri.getPort() > 0,
-				() -> "the redirect-uri [" + redirectUri + "] must name the port the app should listen on");
-		this.path = redirectUri.getPath();
-		var address = new InetSocketAddress(InetAddress.getLoopbackAddress(), redirectUri.getPort());
-		this.server = HttpServer.create(address, 0, this.path, this::handle);
-		this.server.start();
-	}
-
-	Map<String, String> await(Duration timeout) throws IOException {
-		try {
-			return this.response.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-		}
-		catch (TimeoutException te) {
-			throw new SocketTimeoutException("gave up waiting for the authorization response");
-		}
-		catch (InterruptedException ie) {
-			Thread.currentThread().interrupt();
-			throw new InterruptedIOException("interrupted waiting for the authorization response");
-		}
-		catch (ExecutionException ee) {
-			throw new IOException(ee.getCause());
-		}
-	}
-
-	/*
-	 * A context matches by prefix, so this sees more than the redirect: the browser's
-	 * `/favicon.ico`, a stray `/`, a path that merely starts the same way. Anything that
-	 * is not the response we are waiting for gets a 404 and leaves the flow running.
-	 */
-	private void handle(HttpExchange exchange) throws IOException {
-		var parameters = parameters(exchange.getRequestURI());
-		try (exchange) {
-			respond(exchange, parameters != null);
-		}
-		if (parameters != null) {
-			// only after the page is on the wire: await(..) returning tears the server
-			// down.
-			this.response.complete(parameters);
-		}
-	}
-
-	/*
-	 * `/login/oauth2/code/javafx?code=...&state=...` -> the query parameters, or `null`
-	 * for anything that isn't the redirect we're waiting for.
-	 */
-	private Map<String, String> parameters(URI target) {
-		if (!this.path.equals(target.getPath()) || target.getRawQuery() == null) {
-			return null;
-		}
-		var parameters = new LinkedHashMap<String, String>();
-		for (var pair : target.getRawQuery().split("&")) {
-			var separator = pair.indexOf('=');
-			var name = separator < 0 ? pair : pair.substring(0, separator);
-			var value = separator < 0 ? "" : pair.substring(separator + 1);
-			parameters.put(URLDecoder.decode(name, StandardCharsets.UTF_8),
-					URLDecoder.decode(value, StandardCharsets.UTF_8));
-		}
-		return parameters.containsKey(OAuth2ParameterNames.CODE) || parameters.containsKey(OAuth2ParameterNames.ERROR)
-				? parameters : null;
-	}
-
-	private static void respond(HttpExchange exchange, boolean matched) throws IOException {
-		if (!matched) {
-			exchange.sendResponseHeaders(404, -1);
-			return;
-		}
-		var body = PAGE.getBytes(StandardCharsets.UTF_8);
-		exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
-		exchange.sendResponseHeaders(200, body.length);
-		exchange.getResponseBody().write(body);
-	}
-
-	@Override
-	public void close() {
-		/*
-		 * stop(0): drop the listening socket now, and don't sit around waiting on a
-		 * browser that is holding a keep-alive connection open for a page it is never
-		 * going to ask for.
-		 **/
-		this.server.stop(0);
 	}
 
 }
