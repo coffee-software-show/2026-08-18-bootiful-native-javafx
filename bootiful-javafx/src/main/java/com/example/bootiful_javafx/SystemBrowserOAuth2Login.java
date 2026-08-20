@@ -27,14 +27,9 @@ import org.springframework.util.Assert;
 
 import java.util.*;
 
-/* Signs a *desktop* user in with the OAuth 2.0 authorization code grant + PKCE, driving the
- machine's real browser instead of an embedded one.
-
- The flow leaves the process in the middle - the user is off typing a password on somebody else's
- web page - so it is written as two halves: `start` opens the browser, and `finish` picks the code
- up when the browser comes back to [AuthorizationCodeRedirectController]. Nothing waits in between;
- the app hears about the result as a [UserSignedInEvent].
-*/
+/*
+ * Signs a desktop user in with the OAuth 2.0 authorization code grant + PKCE, driving the machine's real browser instead of an embedded one.
+ */
 @Service
 class SystemBrowserOAuth2Login {
 
@@ -109,17 +104,19 @@ class SystemBrowserOAuth2Login {
 		return registration;
 	}
 
-	private static OAuth2AuthorizationRequest authorizationRequest(ClientRegistration registration) {
+	private OAuth2AuthorizationRequest authorizationRequest(ClientRegistration registration) {
+		assert registration.getProviderDetails().getAuthorizationUri() != null;
 		var builder = OAuth2AuthorizationRequest.authorizationCode()
 			.clientId(registration.getClientId())
 			.authorizationUri(registration.getProviderDetails().getAuthorizationUri())
 			.redirectUri(registration.getRedirectUri())
 			.scopes(registration.getScopes())
 			.state(STATE.generateKey());
-		// PKCE (RFC 7636): this puts a code_challenge on the authorization request and
-		// stashes the
-		// code_verifier in the request's attributes; the token request picks it up from
-		// there.
+		/*
+		 * PKCE (RFC 7636): this puts a code_challenge on the authorization request and
+		 * stashes the code_verifier in the request's attributes; the token request picks
+		 * it up from there.
+		 */
 		OAuth2AuthorizationRequestCustomizers.withPkce().accept(builder);
 		return builder.build();
 	}

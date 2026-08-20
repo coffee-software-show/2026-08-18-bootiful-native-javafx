@@ -13,20 +13,25 @@ class SystemBrowser implements AuthorizationBrowser {
 	@Override
 	public void open(String authorizationRequestUri) {
 		try {
-			var os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-			var mapping = Map.of(//
-					"mac", List.of("open", authorizationRequestUri), //
-					"win", List.of("rundll32", "url.dll,FileProtocolHandler", authorizationRequestUri)//
-			);
-			var command = List.of("xdg-open", authorizationRequestUri);
-			for (var osKey : mapping.keySet())
-				if (os.contains(osKey))
-					command = mapping.get(osKey);
-			new ProcessBuilder(command).start();
+			var command = this.buildCommand(authorizationRequestUri);
+			new ProcessBuilder(command)//
+				.start();
 		} //
 		catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+	private List<String> buildCommand(String authorizationRequestUri) {
+		var os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+		var mapping = Map.of(//
+				"mac", List.of("open", authorizationRequestUri), //
+				"win", List.of("rundll32", "url.dll,FileProtocolHandler", authorizationRequestUri)//
+		);
+		for (var osKey : mapping.keySet())
+			if (os.contains(osKey))
+				return mapping.get(osKey);
+		return List.of("xdg-open", authorizationRequestUri);
 	}
 
 }
