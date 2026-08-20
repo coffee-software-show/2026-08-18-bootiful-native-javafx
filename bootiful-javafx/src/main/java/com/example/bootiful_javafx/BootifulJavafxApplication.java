@@ -45,7 +45,6 @@ public class BootifulJavafxApplication {
 		Platform.startup(() -> applicationContext.publishEvent(new StageReadyEvent(new Stage())));
 	}
 
-	// Non-web apps get no `OAuth2AuthorizedClientManager` from Spring Boot
 	@Bean
 	OAuth2AuthorizedClientManager authorizedClientManager(ClientRegistrationRepository registrations,
 			OAuth2AuthorizedClientService authorizedClients, SystemBrowserOAuth2AuthorizedClientProvider browser) {

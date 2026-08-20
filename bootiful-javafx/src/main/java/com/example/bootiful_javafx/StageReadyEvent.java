@@ -5,11 +5,11 @@ import org.springframework.context.ApplicationEvent;
 
 class StageReadyEvent extends ApplicationEvent {
 
-	public StageReadyEvent(Stage stage) {
+	StageReadyEvent(Stage stage) {
 		super(stage);
 	}
 
-	public Stage stage() {
+	Stage stage() {
 		return (Stage) getSource();
 	}
 

@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 /*
  * Signs a desktop user in with the OAuth 2.0 authorization code grant + PKCE, driving the machine's real browser instead of an embedded one.
@@ -33,9 +34,9 @@ import java.util.*;
 @Service
 class SystemBrowserOAuth2Login {
 
-	private static final Logger log = LoggerFactory.getLogger(SystemBrowserOAuth2Login.class);
+	private final Logger log = LoggerFactory.getLogger(SystemBrowserOAuth2Login.class);
 
-	private static final StringKeyGenerator STATE = new Base64StringKeyGenerator(Base64.getUrlEncoder());
+	private final StringKeyGenerator state = new Base64StringKeyGenerator(Base64.getUrlEncoder());
 
 	private final RestClientAuthorizationCodeTokenResponseClient accessTokens = new RestClientAuthorizationCodeTokenResponseClient();
 
@@ -51,13 +52,7 @@ class SystemBrowserOAuth2Login {
 
 	private final ApplicationEventPublisher events;
 
-	/*
-	 * The sign-in that is in flight, if there is one. A desktop app has one user, with
-	 * one browser, in front of one window, so there is never more than one - and the
-	 * `code_verifier` PKCE will need at the end of the flow rides along in its
-	 * attributes.
-	 */
-	private volatile OAuth2AuthorizationRequest inFlight;
+	private final AtomicReference<OAuth2AuthorizationRequest> inFlight = new AtomicReference<>();
 
 	SystemBrowserOAuth2Login(ClientRegistrationRepository registrations,
 			OAuth2AuthorizedClientService authorizedClients, AuthorizationBrowser browser,
@@ -68,13 +63,9 @@ class SystemBrowserOAuth2Login {
 		this.events = events;
 	}
 
-	// Opens the system browser and returns; the answer arrives at the redirect endpoint.
 	void start(String registrationId) {
-		var request = authorizationRequest(registration(registrationId));
-		// remembered before the URL is handed to the OS: the browser can be back with the
-		// code before open() has returned.
-		this.inFlight = request;
-		log.info("opening the system browser to sign in with [{}]", registrationId);
+		var request = this.authorizationRequest(registration(registrationId));
+		this.inFlight.set(request);
 		this.browser.open(request.getAuthorizationRequestUri());
 	}
 
@@ -84,14 +75,12 @@ class SystemBrowserOAuth2Login {
 	 * serving the redirect.
 	 */
 	UserSignedInEvent finish(String registrationId, Map<String, String> parameters) {
-		var request = this.inFlight;
-		this.inFlight = null;
-		if (request == null) {
-			// a reloaded page, a bookmarked redirect, somebody replaying a URL: whatever
-			// this is, nobody in this app is waiting for it.
+		// getAndSet: two redirects racing each other cannot both claim the same
+		// authorization request. The one that loses gets null, and is turned away below.
+		var request = this.inFlight.getAndSet(null);
+		if (request == null)
 			throw new OAuth2AuthorizationException(new OAuth2Error("no_sign_in_in_flight"));
-		}
-		var response = authorizationResponse(request, parameters);
+		var response = this.authorizationResponse(request, parameters);
 		var exchange = new OAuth2AuthorizationExchange(request, response);
 		var event = new UserSignedInEvent(exchange(registration(registrationId), exchange));
 		this.events.publishEvent(event);
@@ -111,7 +100,7 @@ class SystemBrowserOAuth2Login {
 			.authorizationUri(registration.getProviderDetails().getAuthorizationUri())
 			.redirectUri(registration.getRedirectUri())
 			.scopes(registration.getScopes())
-			.state(STATE.generateKey());
+			.state(state.generateKey());
 		/*
 		 * PKCE (RFC 7636): this puts a code_challenge on the authorization request and
 		 * stashes the code_verifier in the request's attributes; the token request picks
