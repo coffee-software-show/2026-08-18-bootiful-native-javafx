@@ -105,7 +105,7 @@ class SystemBrowserOAuth2Login {
 	}
 
 	private OAuth2AuthorizationRequest authorizationRequest(ClientRegistration registration) {
-		assert registration.getProviderDetails().getAuthorizationUri() != null;
+		Assert.notNull(registration.getProviderDetails().getAuthorizationUri(), "the authorization URI is null");
 		var builder = OAuth2AuthorizationRequest.authorizationCode()
 			.clientId(registration.getClientId())
 			.authorizationUri(registration.getProviderDetails().getAuthorizationUri())
@@ -134,7 +134,7 @@ class SystemBrowserOAuth2Login {
 			throw new OAuth2AuthorizationException(new OAuth2Error("invalid_state_parameter"));
 		}
 		return OAuth2AuthorizationResponse.success(parameters.get(OAuth2ParameterNames.CODE))
-			.redirectUri(request.getRedirectUri())
+			.redirectUri(Objects.requireNonNull(request.getRedirectUri()))
 			.state(state)
 			.build();
 	}
@@ -142,16 +142,14 @@ class SystemBrowserOAuth2Login {
 	private OAuth2AuthenticationToken exchange(ClientRegistration registration, OAuth2AuthorizationExchange exchange) {
 		var tokens = this.accessTokens
 			.getTokenResponse(new OAuth2AuthorizationCodeGrantRequest(registration, exchange));
-		var user = this.users.loadUser(new OidcUserRequest(registration, tokens.getAccessToken(),
-				idToken(registration, tokens), tokens.getAdditionalParameters()));
+		var idToken = this.idToken(registration, tokens);
+		var oidcUserRequest = new OidcUserRequest(registration, tokens.getAccessToken(), idToken,
+				tokens.getAdditionalParameters());
+		var user = this.users.loadUser(oidcUserRequest);
 		var authentication = new OAuth2AuthenticationToken(user, user.getAuthorities(),
 				registration.getRegistrationId());
 
-		// hand the tokens to Spring Security. From here on nothing else in the app
-		// touches them:
-		// the OAuth2AuthorizedClientManager hands them out and quietly spends the refresh
-		// token
-		// when the access token is close to expiring.
+		// give the token to Spring Security who'll handle refreshing it
 		this.authorizedClients.saveAuthorizedClient(new OAuth2AuthorizedClient(registration, user.getName(),
 				tokens.getAccessToken(), tokens.getRefreshToken()), authentication);
 
